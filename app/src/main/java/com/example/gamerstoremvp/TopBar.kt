@@ -1,9 +1,10 @@
 package com.example.gamerstoremvp
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ExitToApp
+// Solo necesitamos el ícono del carrito ahora
 import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -12,7 +13,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-// Importaciones de datos y tema
+// Tus importaciones de tema
 import com.example.gamerstoremvp.ColorAccentNeon
 import com.example.gamerstoremvp.ColorPrimaryBackground
 import com.example.gamerstoremvp.ColorTextPrimary
@@ -20,20 +21,21 @@ import com.example.gamerstoremvp.ColorTextSecondary
 import com.example.gamerstoremvp.Orbitron
 import com.example.gamerstoremvp.Roboto
 
-/**
- * Barra de aplicación personalizada con el tema gamer.
- */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun GamerStoreTopBar(
     onNavigateToCart: () -> Unit,
-    onNavigateToCatalog: () -> Unit, // Aunque no se usa aquí, es bueno tenerlo
+    onNavigateToCatalog: () -> Unit,
     cartItemCount: Int,
-    onLogout: () -> Unit
+    navigationIcon: @Composable () -> Unit = {} // <-- MODIFICACIÓN 1: Añadir ícono de navegación
+    // Se quita onNavigateToProfile de aquí
 ) {
     TopAppBar(
         title = {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            Row( // El título sigue siendo clickeable para ir al catálogo
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.clickable { onNavigateToCatalog() }
+            ) {
                 Text(
                     text = "LEVEL-UP",
                     fontFamily = Orbitron,
@@ -51,20 +53,18 @@ fun GamerStoreTopBar(
                 )
             }
         },
+        // --- MODIFICACIÓN 2: Usar el navigationIcon ---
+        navigationIcon = navigationIcon,
+        // ---------------------------------------------
         actions = {
-            // --- CAMBIO PRINCIPAL AQUÍ ---
-            // 1. Ícono del Carrito con Insignia (Badge) para mostrar la cantidad
+            // Ícono del Carrito con Insignia (no cambia)
             BadgedBox(
                 badge = {
-                    // La insignia solo se muestra si hay productos en el carrito
                     if (cartItemCount > 0) {
-                        Badge {
-                            Text(text = "$cartItemCount")
-                        }
+                        Badge { Text(text = "$cartItemCount") }
                     }
                 }
             ) {
-                // 2. Hacemos que el ícono sea un botón clicable
                 IconButton(onClick = onNavigateToCart) {
                     Icon(
                         imageVector = Icons.Filled.ShoppingCart,
@@ -73,19 +73,12 @@ fun GamerStoreTopBar(
                     )
                 }
             }
-
-            // 3. Botón para Cerrar Sesión
-            IconButton(onClick = onLogout) {
-                Icon(
-                    imageVector = Icons.Filled.ExitToApp,
-                    contentDescription = "Cerrar Sesión",
-                    tint = ColorTextPrimary
-                )
-            }
+            // --- MODIFICACIÓN 3: Se quita el botón de perfil de aquí ---
         },
         colors = TopAppBarDefaults.topAppBarColors(
             containerColor = ColorPrimaryBackground,
-            titleContentColor = ColorAccentNeon
+            titleContentColor = ColorAccentNeon,
+            actionIconContentColor = ColorTextPrimary // Asegurar color de íconos
         )
     )
 }

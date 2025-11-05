@@ -3,6 +3,7 @@ package com.example.gamerstoremvp
 import android.annotation.SuppressLint
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable // Asegúrate de tener esta importación
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -40,27 +41,27 @@ import com.example.gamerstoremvp.formatPrice
 import com.example.gamerstoremvp.mockProducts
 
 
-/**
- * Pantalla de Catálogo: Muestra la lista de productos con filtros funcionales.
- */
+
 @Composable
-fun CatalogScreen(products: List<Product>, onAddToCart: (Product) -> Unit) {
-    // --- ESTADO: LA "MEMORIA" DE LA PANTALLA ---
-    // 1. Estado para recordar la categoría seleccionada.
+fun CatalogScreen(
+    products: List<Product>,
+    onAddToCart: (Product) -> Unit,
+    onProductClick: (Product) -> Unit
+) {
+
     var selectedCategory by remember { mutableStateOf("Todos") }
-    // 2. Estado para recordar lo que el usuario escribe en el buscador.
+
     var searchQuery by remember { mutableStateOf("") }
 
-    // --- LÓGICA: FILTRADO DINÁMICO ---
-    // Esta lista se recalcula automáticamente cuando 'selectedCategory' o 'searchQuery' cambian.
+
     val filteredProducts = remember(selectedCategory, searchQuery, products) {
         products
             .filter { product ->
-                // Primer filtro: por categoría
+
                 if (selectedCategory == "Todos") true else product.category == selectedCategory
             }
             .filter { product ->
-                // Segundo filtro: por texto de búsqueda (ignora mayúsculas/minúsculas)
+
                 product.name.contains(searchQuery, ignoreCase = true)
             }
     }
@@ -74,8 +75,13 @@ fun CatalogScreen(products: List<Product>, onAddToCart: (Product) -> Unit) {
     ) {
         item(span = { GridItemSpan(maxLineSpan) }) {
             Column {
-                WelcomeBanner()
-                // Pasamos los estados y las funciones para que los filtros puedan "hablar" con la pantalla.
+                WelcomeBanner(
+                    onTitleClick = {
+                        selectedCategory = "Todos"
+                        searchQuery = ""
+                    }
+                )
+
                 SearchBarAndFilters(
                     searchQuery = searchQuery,
                     onSearchQueryChange = { newQuery -> searchQuery = newQuery },
@@ -85,18 +91,20 @@ fun CatalogScreen(products: List<Product>, onAddToCart: (Product) -> Unit) {
             }
         }
 
-        // Usamos la lista ya filtrada para mostrar los productos.
+
         items(filteredProducts) { product ->
-            ProductGridCard(product, onAddToCart)
+
+            ProductGridCard(
+                product = product,
+                onAddToCart = onAddToCart,
+                onProductClick = onProductClick
+            )
         }
     }
 }
 
-/**
- * Componente de Banner de Bienvenida. (Sin cambios)
- */
 @Composable
-fun WelcomeBanner() {
+fun WelcomeBanner(onTitleClick: () -> Unit) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -116,7 +124,8 @@ fun WelcomeBanner() {
                 fontFamily = Orbitron,
                 fontSize = 22.sp,
                 fontWeight = FontWeight.Bold,
-                color = ColorAccentNeon
+                color = ColorAccentNeon,
+                modifier = Modifier.clickable { onTitleClick() }
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
@@ -130,10 +139,7 @@ fun WelcomeBanner() {
     }
 }
 
-/**
- * Componente de Barra de Búsqueda y Botones de Filtro. (CORREGIDO)
- * Ahora acepta parámetros para ser controlado desde el exterior.
- */
+
 @Composable
 fun SearchBarAndFilters(
     searchQuery: String,
@@ -144,7 +150,7 @@ fun SearchBarAndFilters(
     Column {
         OutlinedTextField(
             value = searchQuery,
-            onValueChange = onSearchQueryChange, // Conectado al estado
+            onValueChange = onSearchQueryChange,
             modifier = Modifier.fillMaxWidth(),
             label = { Text("Buscar productos...", color = ColorTextSecondary.copy(alpha = 0.7f)) },
             leadingIcon = { Icon(Icons.Default.Search, contentDescription = "Buscar", tint = ColorTextSecondary) },
@@ -170,10 +176,10 @@ fun SearchBarAndFilters(
             val categories = listOf("Todos") + mockProducts.map { it.category }.distinct()
             items(categories) { category ->
                 Button(
-                    onClick = { onCategorySelected(category) }, // Conectado al estado
+                    onClick = { onCategorySelected(category) },
                     shape = RoundedCornerShape(8.dp),
                     colors = ButtonDefaults.buttonColors(
-                        // El color ahora depende del estado
+
                         containerColor = if (category == selectedCategory) ColorAccentBlue else Color.DarkGray,
                         contentColor = ColorTextPrimary
                     ),
@@ -186,17 +192,22 @@ fun SearchBarAndFilters(
     }
 }
 
-/**
- * Tarjeta individual de producto. (Sin cambios)
- */
+
 @SuppressLint("DefaultLocale")
 @Composable
-fun ProductGridCard(product: Product, onAddToCart: (Product) -> Unit) {
+fun ProductGridCard(
+    product: Product,
+    onAddToCart: (Product) -> Unit,
+    onProductClick: (Product) -> Unit
+) {
     Card(
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = Color.DarkGray.copy(alpha = 0.9f)),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
-        modifier = Modifier.fillMaxWidth()
+
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onProductClick(product) }
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {
             Image(
@@ -209,7 +220,7 @@ fun ProductGridCard(product: Product, onAddToCart: (Product) -> Unit) {
                 contentScale = ContentScale.Crop
             )
             Column(modifier = Modifier.padding(8.dp)) {
-                // ... (El contenido interno de la tarjeta no necesita cambios)
+
                 Text(
                     text = product.category,
                     fontFamily = Roboto,

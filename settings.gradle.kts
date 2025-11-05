@@ -1,12 +1,7 @@
 pluginManagement {
     repositories {
-        google {
-            content {
-                includeGroupByRegex("com\\.android.*")
-                includeGroupByRegex("com\\.google.*")
-                includeGroupByRegex("androidx.*")
-            }
-        }
+        // --- ESTA ES LA VERSIÓN SIMPLIFICADA Y CORRECTA ---
+        google()
         mavenCentral()
         gradlePluginPortal()
     }
@@ -14,6 +9,7 @@ pluginManagement {
 dependencyResolutionManagement {
     repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
     repositories {
+        // Esto ya lo tenías bien, le dice a la app dónde buscar
         google()
         mavenCentral()
     }
@@ -21,4 +17,3 @@ dependencyResolutionManagement {
 
 rootProject.name = "GamerStoreMVP"
 include(":app")
- 

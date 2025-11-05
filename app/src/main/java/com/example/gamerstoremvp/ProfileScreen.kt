@@ -1,0 +1,319 @@
+package com.example.gamerstoremvp
+
+
+import android.widget.Toast // <-- ¡NUEVA IMPORTACIÓN!
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.People
+import androidx.compose.material.icons.filled.Star
+// --- ¡NUEVAS IMPORTACIONES! ---
+import androidx.compose.material.icons.filled.Redeem
+import androidx.compose.material.icons.filled.Warning
+// ------------------------------
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext // <-- ¡NUEVA IMPORTACIÓN!
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+
+// Importaciones de tu tema
+import com.example.gamerstoremvp.ColorAccentBlue
+import com.example.gamerstoremvp.ColorAccentNeon
+import com.example.gamerstoremvp.ColorPrimaryBackground
+import com.example.gamerstoremvp.ColorTextSecondary
+import com.example.gamerstoremvp.ColorTextPrimary
+import com.example.gamerstoremvp.Orbitron
+import com.example.gamerstoremvp.Roboto
+
+@Composable
+fun ProfileScreen(
+    user: User,
+    onLogout: () -> Unit,
+    onUserUpdate: (User) -> Unit
+) {
+
+    // Estados para los campos de perfil
+    var name by remember { mutableStateOf(user.name) }
+    var phone by remember { mutableStateOf(user.phone) }
+    var address by remember { mutableStateOf(user.address) }
+
+    // --- ¡NUEVOS ESTADOS PARA CANJEAR PUNTOS! ---
+    var pointsToRedeemStr by remember { mutableStateOf("") }
+    var showCouponDialog by remember { mutableStateOf(false) }
+    var generatedCoupon by remember { mutableStateOf("") }
+    val context = LocalContext.current
+    // ------------------------------------------
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(ColorPrimaryBackground)
+            .verticalScroll(rememberScrollState())
+            .padding(24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(
+            text = "MI PERFIL",
+            fontFamily = Orbitron,
+            fontSize = 28.sp,
+            fontWeight = FontWeight.ExtraBold,
+            color = ColorAccentNeon
+        )
+        Spacer(modifier = Modifier.height(24.dp))
+
+        Box {
+            Image(
+                painter = painterResource(id = user.profileImageResId ?: R.drawable.profile_pic_default),
+                contentDescription = "Foto de Perfil",
+                contentScale = ContentScale.Crop,
+                modifier = Modifier
+                    .size(120.dp)
+                    .clip(CircleShape)
+                    .border(2.dp, ColorAccentBlue, CircleShape)
+            )
+            Icon(
+                imageVector = Icons.Default.Edit,
+                contentDescription = "Editar Foto",
+                tint = ColorPrimaryBackground,
+                modifier = Modifier
+                    .size(32.dp)
+                    .clip(CircleShape)
+                    .background(ColorAccentNeon)
+                    .padding(6.dp)
+                    .align(Alignment.BottomEnd)
+            )
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        // Tarjetas de Puntos y Referido (como antes)
+        InfoCard(
+            title = "MIS PUNTOS LEVEL-UP",
+            content = "${user.levelUpPoints} Pts",
+            icon = Icons.Default.Star
+        )
+        InfoCard(
+            title = "MI CÓDIGO DE REFERIDO",
+            content = user.referralCode.uppercase(),
+            icon = Icons.Default.People
+        )
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        // --- ¡NUEVA TARJETA PARA CANJEAR PUNTOS! ---
+        Card(
+            shape = RoundedCornerShape(12.dp),
+            colors = CardDefaults.cardColors(containerColor = Color.DarkGray.copy(alpha = 0.7f)),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Text(
+                    text = "CANJEAR PUNTOS",
+                    fontFamily = Orbitron,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = ColorAccentNeon
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "Ingresa cuántos puntos quieres canjear. (1 Punto = 1 CLP)",
+                    fontFamily = Roboto,
+                    fontSize = 12.sp,
+                    color = ColorTextSecondary
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Campo para ingresar puntos
+                AuthTextField(
+                    value = pointsToRedeemStr,
+                    onValueChange = { pointsToRedeemStr = it.filter { c -> c.isDigit() } },
+                    label = "Puntos a canjear (Ej: 5000)",
+                    keyboardType = KeyboardType.Number
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // Botón Canjear
+                Button(
+                    onClick = {
+                        val pointsToRedeem = pointsToRedeemStr.toIntOrNull() ?: 0
+
+                        if (pointsToRedeem == 0) {
+                            Toast.makeText(context, "Ingresa un monto válido", Toast.LENGTH_SHORT).show()
+                        } else if (pointsToRedeem > user.levelUpPoints) {
+                            Toast.makeText(context, "No tienes suficientes puntos", Toast.LENGTH_SHORT).show()
+                        } else {
+                            // Lógica de canje
+                            val newPoints = user.levelUpPoints - pointsToRedeem
+                            val updatedUser = user.copy(levelUpPoints = newPoints)
+                            onUserUpdate(updatedUser) // Actualiza el usuario
+
+                            // Genera el cupón
+                            generatedCoupon = "LEVELUP$pointsToRedeem" // Ej: LEVELUP5000
+                            showCouponDialog = true // Muestra el diálogo
+                            pointsToRedeemStr = "" // Limpia el campo
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth().height(50.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = ColorAccentNeon),
+                    enabled = pointsToRedeemStr.isNotBlank()
+                ) {
+                    Text("GENERAR CUPÓN", fontFamily = Orbitron, fontWeight = FontWeight.Black, color = ColorPrimaryBackground)
+                }
+            }
+        }
+        // ------------------------------------------
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        // Campos de perfil (como antes)
+        AuthTextField(
+            value = user.email,
+            onValueChange = {},
+            label = "Email (No se puede cambiar)",
+            keyboardType = KeyboardType.Email
+        )
+        AuthTextField(
+            value = name,
+            onValueChange = { name = it },
+            label = "Nombre Completo",
+            keyboardType = KeyboardType.Text
+        )
+        AuthTextField(
+            value = phone,
+            onValueChange = { phone = it },
+            label = "Teléfono",
+            keyboardType = KeyboardType.Phone
+        )
+        AuthTextField(
+            value = address,
+            onValueChange = { address = it },
+            label = "Dirección",
+            keyboardType = KeyboardType.Text
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Botones (como antes)
+        Button(
+            onClick = {
+                val updatedUser = user.copy(
+                    name = name,
+                    phone = phone,
+                    address = address
+                )
+                onUserUpdate(updatedUser)
+            },
+            modifier = Modifier.fillMaxWidth().height(50.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = ColorAccentBlue),
+            shape = RoundedCornerShape(10.dp)
+        ) {
+            Text("GUARDAR CAMBIOS", fontFamily = Orbitron, fontWeight = FontWeight.Bold)
+        }
+        Spacer(modifier = Modifier.height(8.dp))
+        Button(
+            onClick = { },
+            modifier = Modifier.fillMaxWidth().height(50.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = Color.DarkGray),
+            shape = RoundedCornerShape(10.dp)
+        ) {
+            Text("CAMBIAR CONTRASEÑA", fontFamily = Orbitron, fontWeight = FontWeight.Bold)
+        }
+        Spacer(modifier = Modifier.weight(1f))
+        Button(
+            onClick = onLogout,
+            modifier = Modifier.fillMaxWidth().height(50.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = Color.Red.copy(alpha = 0.8f)),
+            shape = RoundedCornerShape(10.dp)
+        ) {
+            Text("CERRAR SESIÓN", fontFamily = Orbitron, fontWeight = FontWeight.Black)
+        }
+    }
+
+    // --- ¡NUEVO DIÁLOGO PARA MOSTRAR EL CUPÓN! ---
+    if (showCouponDialog) {
+        AlertDialog(
+            onDismissRequest = { showCouponDialog = false },
+            icon = { Icon(Icons.Filled.Redeem, contentDescription = "Cupón", tint = ColorAccentNeon) },
+            title = { Text("¡Cupón Generado!", fontFamily = Orbitron, color = ColorTextPrimary) },
+            text = {
+                Column {
+                    Text("Tu cupón es:", fontFamily = Roboto, color = ColorTextSecondary)
+                    Text(
+                        text = generatedCoupon,
+                        fontFamily = Orbitron,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 20.sp,
+                        color = ColorAccentBlue,
+                        modifier = Modifier.padding(top = 8.dp)
+                    )
+                    Text(
+                        text = "Úsalo en tu carrito de compras para obtener ${formatPrice(generatedCoupon.removePrefix("LEVELUP").toInt())} de descuento.",
+                        fontFamily = Roboto,
+                        color = ColorTextSecondary,
+                        modifier = Modifier.padding(top = 16.dp)
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showCouponDialog = false }) {
+                    Text("ENTENDIDO", color = ColorAccentBlue)
+                }
+            },
+            containerColor = Color.DarkGray
+        )
+    }
+}
+
+
+// --- Composable InfoCard (sin cambios) ---
+@Composable
+fun InfoCard(title: String, content: String, icon: ImageVector) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp),
+        shape = RoundedCornerShape(8.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.DarkGray.copy(alpha = 0.5f))
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(imageVector = icon, contentDescription = title, tint = ColorAccentNeon, modifier = Modifier.size(32.dp))
+            Spacer(modifier = Modifier.width(16.dp))
+            Column {
+                Text(
+                    text = title,
+                    fontFamily = Roboto,
+                    fontSize = 12.sp,
+                    color = ColorTextSecondary
+                )
+                Text(
+                    text = content,
+                    fontFamily = Orbitron,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = ColorTextPrimary
+                )
+            }
+        }
+    }
+}

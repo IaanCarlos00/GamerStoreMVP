@@ -1,25 +1,34 @@
 package com.example.gamerstoremvp
 
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.OffsetMapping
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.TransformedText
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
-import androidx.compose.ui.graphics.Color // ¡IMPORTACIÓN NECESARIA para usar Color directamente!
+import kotlinx.coroutines.launch
+import java.util.Calendar
 
-// Importaciones de datos y tema
+// Importaciones de tu tema
 import com.example.gamerstoremvp.ColorAccentBlue
 import com.example.gamerstoremvp.ColorAccentNeon
 import com.example.gamerstoremvp.ColorPrimaryBackground
@@ -27,21 +36,27 @@ import com.example.gamerstoremvp.ColorTextSecondary
 import com.example.gamerstoremvp.ColorTextPrimary
 import com.example.gamerstoremvp.Orbitron
 import com.example.gamerstoremvp.Roboto
-import kotlinx.coroutines.launch
+import com.example.gamerstoremvp.User
 
-
-/**
- * Pantalla de Autenticación (Login/Registro).
- */
 @Composable
-fun AuthScreen(onAuthSuccess: () -> Unit) {
-    var email by remember { mutableStateOf("usuario@ejemplo.com") }
-    var password by remember { mutableStateOf("123456") }
+fun AuthScreen(
+    userViewModel: UserViewModel, // Recibe el ViewModel
+    onAuthSuccess: (User) -> Unit
+) {
+    // Estados para los campos
+    var email by remember { mutableStateOf("") }
+    var password by remember { mutableStateOf("") }
+    var name by remember { mutableStateOf("") }
+    var phone by remember { mutableStateOf("") }
+    var address by remember { mutableStateOf("") }
+    var dob by remember { mutableStateOf("") }
+    var referralCode by remember { mutableStateOf("") } // <-- ¡¡NUEVO CAMPO!!
+
     var isLogin by remember { mutableStateOf(true) }
     var isLoading by remember { mutableStateOf(false) }
 
-    // Usamos rememberCoroutineScope para manejar las funciones suspendidas (como delay)
     val coroutineScope = rememberCoroutineScope()
+    val context = LocalContext.current
 
     val buttonText = if (isLogin) "INICIAR SESIÓN" else "REGISTRARSE"
 
@@ -49,7 +64,8 @@ fun AuthScreen(onAuthSuccess: () -> Unit) {
         modifier = Modifier
             .fillMaxSize()
             .padding(24.dp)
-            .background(ColorPrimaryBackground), // Aseguramos el fondo aquí por si acaso
+            .background(ColorPrimaryBackground)
+            .verticalScroll(rememberScrollState()),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
@@ -69,69 +85,165 @@ fun AuthScreen(onAuthSuccess: () -> Unit) {
             modifier = Modifier.padding(bottom = 24.dp)
         )
 
-        // Campo de Email
-        OutlinedTextField(
+        // --- Muestra campos adicionales solo si NO es Login ---
+        if (!isLogin) {
+            AuthTextField(
+                value = name,
+                onValueChange = { name = it },
+                label = "Nombre Completo",
+                keyboardType = KeyboardType.Text
+            )
+            AuthTextField(
+                value = phone,
+                onValueChange = { phone = it },
+                label = "Número de Teléfono",
+                keyboardType = KeyboardType.Phone
+            )
+            AuthTextField(
+                value = address,
+                onValueChange = { address = it },
+                label = "Dirección",
+                keyboardType = KeyboardType.Text
+            )
+
+            AuthTextField(
+                value = dob,
+                onValueChange = { newValue ->
+                    dob = newValue.filter { it.isDigit() }.take(8)
+                },
+                label = "Fecha de Nacimiento (DD/MM/AAAA)",
+                keyboardType = KeyboardType.Number,
+                visualTransformation = DateVisualTransformation()
+            )
+
+            // --- ¡¡NUEVO CAMPO DE REFERIDO!! ---
+            AuthTextField(
+                value = referralCode,
+                onValueChange = { referralCode = it },
+                label = "Código de Referido (Opcional)",
+                keyboardType = KeyboardType.Text
+            )
+        }
+        // ---------------------------------------------
+
+        // Campos comunes (Email y Contraseña)
+        AuthTextField(
             value = email,
             onValueChange = { email = it },
-            label = { Text("Email", color = ColorTextSecondary.copy(alpha = 0.7f)) },
-            // La importación de KeyboardOptions estaba faltando
-            keyboardOptions = KeyboardOptions(
-                keyboardType = KeyboardType.Email
-            ),
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = ColorAccentBlue,
-                unfocusedBorderColor = Color.DarkGray,
-                cursorColor = ColorAccentNeon,
-                focusedLabelColor = ColorAccentBlue,
-                unfocusedLabelColor = ColorTextSecondary,
-                focusedTextColor = ColorTextPrimary,
-                unfocusedTextColor = ColorTextPrimary,
-                focusedContainerColor = Color.DarkGray.copy(alpha = 0.2f),
-                unfocusedContainerColor = Color.DarkGray.copy(alpha = 0.1f)
-            ),
-            modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)
+            label = "Email",
+            keyboardType = KeyboardType.Email
         )
-
-        // Campo de Contraseña
-        OutlinedTextField(
+        AuthTextField(
             value = password,
             onValueChange = { password = it },
-            label = { Text("Contraseña", color = ColorTextSecondary.copy(alpha = 0.7f)) },
-            keyboardOptions = KeyboardOptions(
-                keyboardType = KeyboardType.Password
-            ),
-            visualTransformation = PasswordVisualTransformation(),
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = ColorAccentBlue,
-                unfocusedBorderColor = Color.DarkGray,
-                cursorColor = ColorAccentNeon,
-                focusedLabelColor = ColorAccentBlue,
-                unfocusedLabelColor = ColorTextSecondary,
-                focusedTextColor = ColorTextPrimary,
-                unfocusedTextColor = ColorTextPrimary,
-                focusedContainerColor = Color.DarkGray.copy(alpha = 0.2f),
-                unfocusedContainerColor = Color.DarkGray.copy(alpha = 0.1f)
-            ),
-            modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)
+            label = "Contraseña",
+            keyboardType = KeyboardType.Password,
+            isPassword = true
         )
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        // Botón de Acción Principal (Login/Registro)
+        // --- Botón Principal (Login o Registro) ---
         Button(
             onClick = {
-                // CORRECCIÓN: Usa el coroutineScope recordado para llamar a la función suspendida delay
                 isLoading = true
                 coroutineScope.launch {
-                    delay(1000) // Simular un retraso de red
+                    delay(1000)
                     isLoading = false
-                    onAuthSuccess()
+
+                    if (isLogin) {
+                        // --- LÓGICA DE LOGIN (Sin cambios) ---
+                        val foundUser = userViewModel.allUsers.find { it.email.equals(email, ignoreCase = true) && it.password == password }
+                        if (foundUser != null) {
+                            onAuthSuccess(foundUser)
+                        } else {
+                            Toast.makeText(context, "Email o contraseña incorrectos", Toast.LENGTH_SHORT).show()
+                        }
+                    } else {
+                        // --- LÓGICA DE REGISTRO (Actualizada con Referido) ---
+
+                        // 1. Validaciones de campos vacíos
+                        if (name.isBlank() || phone.isBlank() || address.isBlank() || email.isBlank() || password.isBlank() || dob.isBlank()) {
+                            Toast.makeText(context, "Por favor, rellena todos los campos obligatorios", Toast.LENGTH_SHORT).show()
+
+                            // 2. Validación de formato de fecha
+                        } else if (dob.length != 8) {
+                            Toast.makeText(context, "Fecha de nacimiento incompleta", Toast.LENGTH_SHORT).show()
+
+                        } else {
+
+                            var age: Int
+
+                            try {
+                                // 3. Calcular la edad
+                                val day = dob.substring(0, 2).toInt()
+                                val month = dob.substring(2, 4).toInt()
+                                val year = dob.substring(4, 8).toInt()
+                                val dobCalendar = Calendar.getInstance()
+                                dobCalendar.set(year, month - 1, day)
+                                val todayCalendar = Calendar.getInstance()
+                                age = todayCalendar.get(Calendar.YEAR) - dobCalendar.get(Calendar.YEAR)
+                                if (todayCalendar.get(Calendar.DAY_OF_YEAR) < dobCalendar.get(Calendar.DAY_OF_YEAR)) {
+                                    age--
+                                }
+                            } catch (e: Exception) {
+                                Toast.makeText(context, "Fecha de nacimiento inválida", Toast.LENGTH_SHORT).show()
+                                age = 0
+                            }
+
+                            // 4. Validación de Edad
+                            if (age < 18) {
+                                Toast.makeText(context, "No se puede registrar por ser menor de edad", Toast.LENGTH_SHORT).show()
+
+                            } else {
+                                // --- ¡NUEVA LÓGICA DE REFERIDO! ---
+
+                                var referringUser: User? = null
+                                var bonusPoints = 0 // Puntos para el nuevo usuario
+
+                                if (referralCode.isNotBlank()) {
+                                    // Busca al usuario que posee el código
+                                    referringUser = userViewModel.allUsers.find {
+                                        it.referralCode.equals(referralCode, ignoreCase = true)
+                                    }
+
+                                    if (referringUser == null) {
+                                        Toast.makeText(context, "Código de referido no válido. Se registrará sin bonos.", Toast.LENGTH_SHORT).show()
+                                    } else {
+                                        Toast.makeText(context, "¡Código válido! Recibirás 1000 puntos extra.", Toast.LENGTH_SHORT).show()
+                                        bonusPoints = 1000 // Puntos para el nuevo usuario (según PDF)
+                                    }
+                                }
+                                // --------------------------------------
+
+                                // 5. Comprueba si el email ya existe
+                                if (userViewModel.allUsers.any { it.email.equals(email, ignoreCase = true) }) {
+                                    Toast.makeText(context, "Este email ya está registrado", Toast.LENGTH_SHORT).show()
+
+                                    // 6. (ÉXITO) Crear nuevo usuario
+                                } else {
+                                    val newUser = User(
+                                        name = name,
+                                        email = email,
+                                        password = password,
+                                        phone = phone,
+                                        address = address,
+                                        profileImageResId = R.drawable.profile_pic_default,
+                                        levelUpPoints = 1000 + bonusPoints // 1000 base + 1000 de bono si aplica
+                                    )
+
+                                    // El ViewModel se encarga de dar puntos al que refirió
+                                    userViewModel.registerUser(newUser, referringUser)
+
+                                    onAuthSuccess(newUser) // Inicia la sesión
+                                }
+                            }
+                        }
+                    }
                 }
             },
             enabled = !isLoading,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(50.dp),
+            modifier = Modifier.fillMaxWidth().height(50.dp),
             shape = RoundedCornerShape(10.dp),
             colors = ButtonDefaults.buttonColors(containerColor = ColorAccentNeon),
             elevation = ButtonDefaults.buttonElevation(defaultElevation = 8.dp)
@@ -145,12 +257,77 @@ fun AuthScreen(onAuthSuccess: () -> Unit) {
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Opción para cambiar entre Login y Registro
         Text(
             text = if (isLogin) "¿No tienes cuenta? Regístrate aquí" else "¿Ya tienes cuenta? Inicia Sesión",
             color = ColorAccentBlue,
             fontSize = 14.sp,
             modifier = Modifier.clickable { isLogin = !isLogin }
         )
+    }
+}
+
+// --- Composable reutilizable para los campos de texto (Sin cambios) ---
+@Composable
+fun AuthTextField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    label: String,
+    keyboardType: KeyboardType,
+    isPassword: Boolean = false,
+    visualTransformation: VisualTransformation = VisualTransformation.None
+) {
+    OutlinedTextField(
+        value = value,
+        onValueChange = onValueChange,
+        label = { Text(label, color = ColorTextSecondary.copy(alpha = 0.7f)) },
+        keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
+        visualTransformation = if (isPassword) PasswordVisualTransformation() else visualTransformation,
+        colors = OutlinedTextFieldDefaults.colors(
+            focusedBorderColor = ColorAccentBlue,
+            unfocusedBorderColor = Color.DarkGray,
+            cursorColor = ColorAccentNeon,
+            focusedLabelColor = ColorAccentBlue,
+            unfocusedLabelColor = ColorTextSecondary,
+            focusedTextColor = ColorTextPrimary,
+            unfocusedTextColor = ColorTextPrimary,
+            focusedContainerColor = Color.DarkGray.copy(alpha = 0.2f),
+            unfocusedContainerColor = Color.DarkGray.copy(alpha = 0.1f)
+        ),
+        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+        singleLine = true
+    )
+}
+
+// --- Clase para Formato de Fecha (Sin cambios) ---
+class DateVisualTransformation : VisualTransformation {
+    override fun filter(text: AnnotatedString): TransformedText {
+        val trimmed = if (text.text.length >= 8) text.text.substring(0..7) else text.text
+
+        val annotatedString = buildAnnotatedString {
+            for (i in trimmed.indices) {
+                append(trimmed[i])
+                if (i == 1 || i == 3) {
+                    append("/")
+                }
+            }
+        }
+
+        val offsetMapping = object : OffsetMapping {
+            override fun originalToTransformed(offset: Int): Int {
+                if (offset <= 1) return offset
+                if (offset <= 3) return offset + 1
+                if (offset <= 8) return offset + 2
+                return 10
+            }
+
+            override fun transformedToOriginal(offset: Int): Int {
+                if (offset <= 2) return offset
+                if (offset <= 5) return offset - 1
+                if (offset <= 10) return offset - 2
+                return 8
+            }
+        }
+
+        return TransformedText(annotatedString, offsetMapping)
     }
 }
