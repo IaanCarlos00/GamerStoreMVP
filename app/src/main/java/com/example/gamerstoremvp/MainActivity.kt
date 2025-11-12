@@ -401,20 +401,20 @@ fun GamerStoreApp(userViewModel: UserViewModel) {
     }
 }
 
-// --- Composable Barra Inferior (CON EL ERROR 'sp' ARREGLADO) ---
+// --- Composable Barra Inferior (CORREGIDO) ---
 @Composable
 fun BottomNavigationBar(navController: NavHostController, currentRoute: String?, isAuthenticated: Boolean) {
     NavigationBar(containerColor = Color.DarkGray.copy(alpha=0.9f)) {
         // --- Item Productos ---
         NavigationBarItem(
             icon = { Icon(Icons.Filled.List, "Productos", tint = if (currentRoute == Screen.CATALOG.name) ColorAccentNeon else ColorTextSecondary) },
-            // AHORA 'sp' ES VÁLIDO
             label = { Text("Productos", color = if (currentRoute == Screen.CATALOG.name) ColorAccentNeon else ColorTextSecondary, fontSize = 10.sp) },
             selected = currentRoute == Screen.CATALOG.name,
             onClick = {
                 navController.navigate(Screen.CATALOG.name) {
-                    popUpTo(navController.graph.startDestinationId) { saveState = true }
-                    launchSingleTop = true; restoreState = true
+                    // ESTA ES LA LÓGICA CORRECTA
+                    popUpTo(navController.graph.startDestinationId)
+                    launchSingleTop = true
                 }
             },
             colors = NavigationBarItemDefaults.colors(indicatorColor = ColorAccentNeon.copy(alpha = 0.1f))
@@ -429,15 +429,15 @@ fun BottomNavigationBar(navController: NavHostController, currentRoute: String?,
             label = {
                 val text = if (isAuthenticated) "Perfil" else "Login"
                 val color = if (currentRoute == Screen.PROFILE.name || currentRoute == Screen.AUTH.name) ColorAccentNeon else ColorTextSecondary
-                // AHORA 'sp' ES VÁLIDO
                 Text(text, color = color, fontSize = 10.sp)
             },
             selected = currentRoute == Screen.PROFILE.name || currentRoute == Screen.AUTH.name,
             onClick = {
                 val destination = if (isAuthenticated) Screen.PROFILE.name else Screen.AUTH.name
                 navController.navigate(destination) {
-                    popUpTo(navController.graph.startDestinationId) { saveState = true }
-                    launchSingleTop = true; restoreState = true
+                    // ESTA ES LA LÓGICA CORRECTA
+                    popUpTo(navController.graph.startDestinationId)
+                    launchSingleTop = true
                 }
             },
             colors = NavigationBarItemDefaults.colors(indicatorColor = ColorAccentNeon.copy(alpha = 0.1f))
@@ -445,13 +445,13 @@ fun BottomNavigationBar(navController: NavHostController, currentRoute: String?,
         // --- Item Pedidos ---
         NavigationBarItem(
             icon = { Icon(Icons.Filled.ReceiptLong, "Pedidos", tint = if (currentRoute == Screen.ORDERS.name) ColorAccentNeon else ColorTextSecondary) },
-            // AHORA 'sp' ES VÁLIDO
             label = { Text("Pedidos", color = if (currentRoute == Screen.ORDERS.name) ColorAccentNeon else ColorTextSecondary, fontSize = 10.sp) },
             selected = currentRoute == Screen.ORDERS.name,
             onClick = {
                 navController.navigate(Screen.ORDERS.name) {
-                    popUpTo(navController.graph.startDestinationId) { saveState = true }
-                    launchSingleTop = true; restoreState = true
+                    // ESTA ES LA LÓGICA CORRECTA
+                    popUpTo(navController.graph.startDestinationId)
+                    launchSingleTop = true
                 }
             },
             colors = NavigationBarItemDefaults.colors(indicatorColor = ColorAccentNeon.copy(alpha = 0.1f))
