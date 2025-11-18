@@ -1,4 +1,4 @@
-package com.example.gamerstoremvp
+package com.example.gamerstoremvp.core.theme
 
 // ¡Ya no importamos mutableStateListOf!
 import androidx.compose.ui.graphics.Color

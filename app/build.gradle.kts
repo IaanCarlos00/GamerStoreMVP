@@ -1,7 +1,8 @@
 plugins {
     alias(libs.plugins.android.application)
-    alias(libs.plugins.kotlin.android)
+    id("org.jetbrains.kotlin.android") // <-- CORREGIDO: Usando el ID directo para consistencia
     alias(libs.plugins.kotlin.compose)
+    id("com.google.devtools.ksp")
 }
 
 android {
@@ -52,7 +53,6 @@ dependencies {
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.compose.material3)
     implementation(libs.androidx.compose.foundation)
-    // implementation(libs.androidx.room.ktx) // Lo tenías comentado, lo dejo así
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
@@ -76,11 +76,14 @@ dependencies {
     // Gson (Para SharedPreferences)
     implementation(libs.gson)
 
-    // --- ¡¡AQUÍ ESTÁ LA CORRECCIÓN DE NAVEGACIÓN!! ---
-
-
-    // 2. Añade la dependencia de navigation-compose usando el alias
+    // --- Navegación ---
     implementation(libs.androidx.navigation.compose)
 
-    // --------------------------------------------------------
+    // --- ROOM DATABASE ---
+    val room_version = "2.6.1"
+    implementation("androidx.room:room-runtime:$room_version")
+    implementation("androidx.room:room-ktx:$room_version")
+    ksp("androidx.room:room-compiler:$room_version")
+    // -------------------
+
 }

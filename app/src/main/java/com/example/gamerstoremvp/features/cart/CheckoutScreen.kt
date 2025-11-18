@@ -1,4 +1,4 @@
-package com.example.gamerstoremvp
+package com.example.gamerstoremvp.features.cart
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -24,14 +24,14 @@ import androidx.compose.ui.text.input.TransformedText
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.gamerstoremvp.ColorAccentBlue
-import com.example.gamerstoremvp.ColorAccentNeon
-import com.example.gamerstoremvp.ColorPrimaryBackground
-import com.example.gamerstoremvp.ColorTextPrimary
-import com.example.gamerstoremvp.ColorTextSecondary
-import com.example.gamerstoremvp.Orbitron
-import com.example.gamerstoremvp.Roboto
-import com.example.gamerstoremvp.formatPrice
+import com.example.gamerstoremvp.core.theme.ColorAccentBlue
+import com.example.gamerstoremvp.core.theme.ColorAccentNeon
+import com.example.gamerstoremvp.core.theme.ColorPrimaryBackground
+import com.example.gamerstoremvp.core.theme.ColorTextPrimary
+import com.example.gamerstoremvp.core.theme.ColorTextSecondary
+import com.example.gamerstoremvp.core.theme.Orbitron
+import com.example.gamerstoremvp.core.theme.Roboto
+import com.example.gamerstoremvp.core.theme.formatPrice
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.util.Calendar // Para validación de fecha

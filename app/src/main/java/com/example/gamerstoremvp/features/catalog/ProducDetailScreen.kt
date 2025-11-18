@@ -1,30 +1,20 @@
-package com.example.gamerstoremvp
+package com.example.gamerstoremvp.features.catalog
 
-// --- ¡NUEVAS IMPORTACIONES PARA COMPARTIR! ---
 import android.content.Context
 import android.content.Intent
-import android.widget.Toast // Para el mensaje de error
-// -------------------------------------------
-
+import android.widget.Toast
+import androidx.compose.animation.*
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape // <-- Importante para el botón de compartir
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Remove
-import androidx.compose.material.icons.filled.ShoppingCart
-import androidx.compose.material.icons.filled.Star
-import androidx.compose.material.icons.filled.StarOutline
-// --- ¡NUEVA IMPORTACIÓN PARA EL ICONO DE COMPARTIR! ---
-import androidx.compose.material.icons.filled.Share
-// ----------------------------------------------------
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.TextButton
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -32,29 +22,19 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.platform.LocalSoftwareKeyboardController
-import androidx.compose.ui.ExperimentalComposeUiApi
-// --- ¡NUEVA IMPORTACIÓN PARA EL CONTEXTO! ---
 import androidx.compose.ui.platform.LocalContext
-// -----------------------------------------
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.gamerstoremvp.core.data.AppDatabase
+import com.example.gamerstoremvp.core.data.ReviewRepository
+import com.example.gamerstoremvp.core.theme.*
 
-// Importaciones de tu tema, datos y Review
-import com.example.gamerstoremvp.ColorAccentBlue
-import com.example.gamerstoremvp.ColorAccentNeon
-import com.example.gamerstoremvp.ColorPrimaryBackground
-import com.example.gamerstoremvp.ColorTextPrimary
-import com.example.gamerstoremvp.ColorTextSecondary
-import com.example.gamerstoremvp.Orbitron
-import com.example.gamerstoremvp.Product
-import com.example.gamerstoremvp.Roboto
-import com.example.gamerstoremvp.formatPrice
-import com.example.gamerstoremvp.Review
-
-@OptIn(ExperimentalComposeUiApi::class)
+@OptIn(ExperimentalAnimationApi::class)
 @Composable
 fun ProductDetailScreen(
     product: Product,
@@ -63,22 +43,25 @@ fun ProductDetailScreen(
     cart: Map<Product, Int>
 ) {
 
-    var userRating by remember { mutableStateOf(0) }
+    val context = LocalContext.current
+
+    val database = AppDatabase.getDatabase(context)
+    val reviewRepository = ReviewRepository(database.reviewDao())
+    val viewModel: ProductDetailViewModel = viewModel(
+        factory = ProductDetailViewModelFactory(reviewRepository, product.code)
+    )
+
+    val reviews by viewModel.reviews.collectAsStateWithLifecycle()
+
+    var userRating by remember { mutableIntStateOf(0) }
     var userReview by remember { mutableStateOf("") }
-    var reviews by remember(product.reviews) {
-        mutableStateOf(product.reviews)
-    }
+    var showReviewForm by remember { mutableStateOf(false) }
 
     val keyboardController = LocalSoftwareKeyboardController.current
     val currentQuantity = cart[product] ?: 0
 
-
     var showRemoveDialog by remember { mutableStateOf(false) }
     var showSuccessDialog by remember { mutableStateOf(false) }
-
-    // --- ¡NUEVO! OBTENER EL CONTEXTO PARA COMPARTIR ---
-    val context = LocalContext.current
-    // --------------------------------------------
 
     Column(
         modifier = Modifier
@@ -94,7 +77,6 @@ fun ProductDetailScreen(
             modifier = Modifier.fillMaxWidth()
         ) {
             Column {
-                // --- CONTENEDOR PARA IMAGEN Y BOTÓN COMPARTIR ---
                 Box {
                     Image(
                         painter = painterResource(id = product.imageResId),
@@ -106,13 +88,10 @@ fun ProductDetailScreen(
                         contentScale = ContentScale.Crop
                     )
 
-                    // --- ¡NUEVO BOTÓN DE COMPARTIR! ---
                     IconButton(
-                        onClick = {
-                            shareProduct(context, product)
-                        },
+                        onClick = { shareProduct(context, product) },
                         modifier = Modifier
-                            .align(Alignment.TopEnd) // Lo pone arriba a la derecha
+                            .align(Alignment.TopEnd)
                             .padding(8.dp)
                             .clip(CircleShape)
                             .background(ColorPrimaryBackground.copy(alpha = 0.5f))
@@ -123,7 +102,6 @@ fun ProductDetailScreen(
                             tint = ColorTextPrimary
                         )
                     }
-                    // ---------------------------------
                 }
 
                 Column(modifier = Modifier.padding(16.dp)) {
@@ -144,7 +122,6 @@ fun ProductDetailScreen(
                     )
                     Spacer(modifier = Modifier.height(16.dp))
 
-
                     ProductQuantityControl(
                         quantity = currentQuantity,
                         onIncrease = { onAddToCart(product) },
@@ -159,7 +136,6 @@ fun ProductDetailScreen(
                             .fillMaxWidth()
                             .height(50.dp)
                     )
-
 
                     Spacer(modifier = Modifier.height(16.dp))
                     Text(
@@ -176,7 +152,6 @@ fun ProductDetailScreen(
                         fontSize = 14.sp,
                         color = ColorTextPrimary
                     )
-
 
                     Spacer(modifier = Modifier.height(16.dp))
                     Text(
@@ -214,72 +189,86 @@ fun ProductDetailScreen(
             }
         }
 
-
         Spacer(modifier = Modifier.height(24.dp))
-        Text(
-            text = "DEJA TU RESEÑA",
-            fontFamily = Orbitron,
-            fontSize = 20.sp,
-            fontWeight = FontWeight.Bold,
-            color = ColorAccentNeon
-        )
-        Spacer(modifier = Modifier.height(16.dp))
-        StarRatingInput(
-            rating = userRating,
-            onRatingChange = { newUserRating -> userRating = newUserRating }
-        )
-        Spacer(modifier = Modifier.height(16.dp))
-        OutlinedTextField(
-            value = userReview,
-            onValueChange = { userReview = it },
-            label = { Text("Escribe tu opinión...", color = ColorTextSecondary.copy(alpha = 0.7f)) },
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(150.dp),
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = ColorAccentBlue,
-                unfocusedBorderColor = Color.DarkGray,
-                cursorColor = ColorAccentNeon,
-                focusedLabelColor = ColorAccentBlue,
-                unfocusedLabelColor = ColorTextSecondary,
-                focusedTextColor = ColorTextPrimary,
-                unfocusedTextColor = ColorTextPrimary,
-                focusedContainerColor = Color.DarkGray.copy(alpha = 0.2f),
-                unfocusedContainerColor = Color.DarkGray.copy(alpha = 0.1f)
-            )
-        )
-        Spacer(modifier = Modifier.height(16.dp))
-        Button(
-            onClick = {
-                if (userRating > 0 && userReview.isNotBlank()) {
-                    val newReview = Review(
-                        username = "GamerChileno",
-                        rating = userRating,
-                        comment = userReview
-                    )
-                    reviews = listOf(newReview) + reviews
-                    userRating = 0
-                    userReview = ""
-                    keyboardController?.hide()
-                }
-            },
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(50.dp),
+
+        OutlinedButton(
+            onClick = { showReviewForm = !showReviewForm },
+            modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(10.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = ColorAccentNeon),
-            elevation = ButtonDefaults.buttonElevation(defaultElevation = 8.dp),
-            enabled = userRating > 0 && userReview.isNotBlank()
+            colors = ButtonDefaults.outlinedButtonColors(contentColor = ColorAccentNeon),
+            border = BorderStroke(1.dp, ColorAccentNeon)
         ) {
             Text(
-                "ENVIAR RESEÑA",
+                text = if (showReviewForm) "OCULTAR FORMULARIO" else "DEJA TU RESEÑA",
                 fontFamily = Orbitron,
                 fontSize = 16.sp,
-                fontWeight = FontWeight.Black,
-                color = ColorPrimaryBackground
+                fontWeight = FontWeight.Bold
             )
         }
 
+        AnimatedVisibility(
+            visible = showReviewForm,
+            enter = fadeIn(animationSpec = tween(500)) + expandVertically(animationSpec = tween(500)),
+            exit = fadeOut(animationSpec = tween(500)) + shrinkVertically(animationSpec = tween(500))
+        ) {
+            Column(modifier = Modifier.padding(top = 16.dp)) {
+                StarRatingInput(
+                    rating = userRating,
+                    onRatingChange = { newUserRating -> userRating = newUserRating }
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                OutlinedTextField(
+                    value = userReview,
+                    onValueChange = { userReview = it },
+                    label = { Text("Escribe tu opinión...", color = ColorTextSecondary.copy(alpha = 0.7f)) },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(150.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = ColorAccentBlue,
+                        unfocusedBorderColor = Color.DarkGray,
+                        cursorColor = ColorAccentNeon,
+                        focusedLabelColor = ColorAccentBlue,
+                        unfocusedLabelColor = ColorTextSecondary,
+                        focusedTextColor = ColorTextPrimary,
+                        unfocusedTextColor = ColorTextPrimary,
+                        focusedContainerColor = Color.DarkGray.copy(alpha = 0.2f),
+                        unfocusedContainerColor = Color.DarkGray.copy(alpha = 0.1f)
+                    )
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                Button(
+                    onClick = {
+                        if (userRating > 0 && userReview.isNotBlank()) {
+                            viewModel.addReview(
+                                username = "GamerChileno",
+                                rating = userRating,
+                                comment = userReview
+                            )
+                            userRating = 0
+                            userReview = ""
+                            keyboardController?.hide()
+                            showReviewForm = false
+                        }
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(50.dp),
+                    shape = RoundedCornerShape(10.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = ColorAccentNeon),
+                    elevation = ButtonDefaults.buttonElevation(defaultElevation = 8.dp),
+                    enabled = userRating > 0 && userReview.isNotBlank()
+                ) {
+                    Text(
+                        "ENVIAR RESEÑA",
+                        fontFamily = Orbitron,
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Black,
+                        color = ColorPrimaryBackground
+                    )
+                }
+            }
+        }
 
         Spacer(modifier = Modifier.height(24.dp))
         Text(
@@ -290,27 +279,30 @@ fun ProductDetailScreen(
             color = ColorTextSecondary
         )
         Spacer(modifier = Modifier.height(8.dp))
-        // --- ¡¡ESTA ES LA LÍNEA QUE FALTABA!! ---
         HorizontalDivider(color = Color.DarkGray)
         Spacer(modifier = Modifier.height(16.dp))
 
-        if (reviews.isEmpty()) {
-            Text(
-                text = "Este producto aún no tiene reseñas. ¡Sé el primero!",
-                color = ColorTextSecondary,
-                fontFamily = Roboto,
-                fontSize = 14.sp
-            )
-        } else {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                reviews.forEach { review ->
-                    ReviewItemCard(review = review)
+        Column(
+            modifier = Modifier.animateContentSize(
+                animationSpec = tween(durationMillis = 500)
+            ),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            if (reviews.isEmpty()) {
+                Text(
+                    text = "Este producto aún no tiene reseñas. ¡Sé el primero!",
+                    color = ColorTextSecondary,
+                    fontFamily = Roboto,
+                    fontSize = 14.sp
+                )
+            } else {
+                reviews.forEachIndexed { index, review ->
+                    AnimatedReviewItemCard(review = review, index = index)
                 }
             }
         }
     }
 
-    // --- (Diálogos - Sin cambios) ---
     if (showRemoveDialog) {
         AlertDialog(
             onDismissRequest = { showRemoveDialog = false },
@@ -356,12 +348,9 @@ fun ProductDetailScreen(
     }
 }
 
-// --- ¡NUEVA FUNCIÓN DE LÓGICA PARA COMPARTIR! ---
-// (Puedes pegarla al final del archivo)
 private fun shareProduct(context: Context, product: Product) {
     val sendIntent: Intent = Intent().apply {
         action = Intent.ACTION_SEND
-        // Texto que se compartirá
         putExtra(Intent.EXTRA_TEXT, "¡Mira este producto en Level-Up Gamer! \n${product.name} - ${formatPrice(product.price)}\n(Aquí iría un link al producto)")
         type = "text/plain"
     }
@@ -369,12 +358,10 @@ private fun shareProduct(context: Context, product: Product) {
     val shareIntent = Intent.createChooser(sendIntent, "Compartir ${product.name}")
     try {
         context.startActivity(shareIntent)
-    } catch (e: Exception) {
-        // Manejar error si no hay apps para compartir
+    } catch (_: Exception) {
         Toast.makeText(context, "No se encontró ninguna app para compartir", Toast.LENGTH_SHORT).show()
     }
 }
-
 
 @Composable
 fun ProductQuantityControl(
@@ -450,7 +437,6 @@ fun ProductQuantityControl(
     }
 }
 
-
 @Composable
 fun StarRatingInput(
     rating: Int,
@@ -470,6 +456,24 @@ fun StarRatingInput(
                 )
             }
         }
+    }
+}
+
+@OptIn(ExperimentalAnimationApi::class)
+@Composable
+fun AnimatedReviewItemCard(review: Review, index: Int) {
+    var isVisible by remember { mutableStateOf(false) }
+
+    LaunchedEffect(key1 = true) {
+        isVisible = true
+    }
+
+    AnimatedVisibility(
+        visible = isVisible,
+        enter = fadeIn(animationSpec = tween(durationMillis = 500, delayMillis = index * 100)) +
+                slideInVertically(initialOffsetY = { it / 2 }, animationSpec = tween(durationMillis = 500, delayMillis = index * 100)),
+    ) {
+        ReviewItemCard(review = review)
     }
 }
 

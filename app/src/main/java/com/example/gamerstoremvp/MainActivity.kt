@@ -8,11 +8,16 @@ import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.core.content.edit // <-- ¡IMPORTANTE PARA SharedPreferences KTX!
+import androidx.core.content.edit
+import androidx.core.net.toUri
 
 // --- Importaciones de Compose UI ---
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.List
+import androidx.compose.material.icons.automirrored.filled.Login
+import androidx.compose.material.icons.automirrored.filled.ReceiptLong
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -20,7 +25,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp // <-- ¡¡IMPORTACIÓN AÑADIDA!! (Arregla error 'sp')
+import androidx.compose.ui.unit.sp
 
 // --- Importaciones de ViewModel ---
 import androidx.lifecycle.ViewModel
@@ -29,6 +34,15 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 // --- Importaciones de Navigation Compose ---
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.*
+import com.example.gamerstoremvp.core.theme.*
+import com.example.gamerstoremvp.features.auth.AuthScreen
+import com.example.gamerstoremvp.features.cart.CartScreen
+import com.example.gamerstoremvp.features.cart.CheckoutScreen
+import com.example.gamerstoremvp.features.catalog.CatalogScreen
+import com.example.gamerstoremvp.features.catalog.ProductDetailScreen
+import com.example.gamerstoremvp.features.orders.OrdersScreen
+import com.example.gamerstoremvp.features.profile.AboutUsScreen
+import com.example.gamerstoremvp.features.profile.ProfileScreen
 
 // --- Importaciones de Coroutines ---
 import kotlinx.coroutines.launch
@@ -39,28 +53,7 @@ import com.google.gson.reflect.TypeToken
 
 // --- Importaciones de tu Proyecto ---
 import com.example.gamerstoremvp.ui.theme.GamerStoreMVPTheme
-import com.example.gamerstoremvp.User
-import com.example.gamerstoremvp.Product
-import com.example.gamerstoremvp.Screen
-import com.example.gamerstoremvp.Order
-import com.example.gamerstoremvp.OrderItem
-import com.example.gamerstoremvp.mockProducts
-import com.example.gamerstoremvp.AuthScreen
-import com.example.gamerstoremvp.CatalogScreen
-import com.example.gamerstoremvp.CartScreen
-import com.example.gamerstoremvp.ProductDetailScreen
-import com.example.gamerstoremvp.ProfileScreen
-import com.example.gamerstoremvp.CheckoutScreen
-import com.example.gamerstoremvp.OrdersScreen
-import com.example.gamerstoremvp.AboutUsScreen
-import com.example.gamerstoremvp.GamerStoreTopBar
-import com.example.gamerstoremvp.ColorPrimaryBackground
-import com.example.gamerstoremvp.ColorAccentNeon
-import com.example.gamerstoremvp.ColorTextPrimary
-import com.example.gamerstoremvp.ColorTextSecondary
-import com.example.gamerstoremvp.ColorAccentBlue
-import com.example.gamerstoremvp.Orbitron
-import com.example.gamerstoremvp.Roboto
+import com.example.gamerstoremvp.ui.theme.components.GamerStoreTopBar
 
 
 // --- ViewModel (ACTUALIZADO con SharedPreferences KTX) ---
@@ -72,7 +65,7 @@ class UserViewModel(context: Context) : ViewModel() {
     private val allUsersKey = "all_users"
     private val ordersKeyPrefix = "orders_"
 
-    var currentUser by mutableStateOf<User?>(loadUser())
+    var currentUser: User? by mutableStateOf(loadUser())
         private set
 
     var orders by mutableStateOf<List<Order>>(emptyList())
@@ -89,23 +82,28 @@ class UserViewModel(context: Context) : ViewModel() {
     private fun loadUser(): User? {
         val userJson = sharedPreferences.getString(currentUserKey, null)
         return if (userJson != null) {
-            try { gson.fromJson(userJson, User::class.java) } catch (e: Exception) { println("Error loading user: ${e.message}"); null }
-        } else { null }
+            try {
+                gson.fromJson(userJson, User::class.java)
+            } catch (_: Exception) {
+                null
+            }
+        } else {
+            null
+        }
     }
 
     fun loginUser(user: User) {
         currentUser = user
         try {
             val userJson = gson.toJson(user)
-            // Forma KTX (corregido)
             sharedPreferences.edit { putString(currentUserKey, userJson) }
             loadOrders(user.id)
-        } catch (e: Exception) { println("Error saving user: ${e.message}") }
+        } catch (_: Exception) { 
+        }
     }
 
     fun logoutUser() {
         currentUser = null
-        // Forma KTX (corregido)
         sharedPreferences.edit { remove(currentUserKey) }
         orders = emptyList()
     }
@@ -114,7 +112,11 @@ class UserViewModel(context: Context) : ViewModel() {
         val usersJson = sharedPreferences.getString(allUsersKey, null)
         val listType = object : TypeToken<List<User>>() {}.type
 
-        val users: List<User>? = try { gson.fromJson(usersJson, listType) } catch (e: Exception) { null }
+        val users: List<User>? = try {
+            gson.fromJson(usersJson, listType)
+        } catch (_: Exception) {
+            null
+        }
 
         if (users.isNullOrEmpty()) {
             val defaultUser = User(
@@ -124,7 +126,7 @@ class UserViewModel(context: Context) : ViewModel() {
                 phone = "+56912345678",
                 address = "Av. Siempre Viva 123, Concepción",
                 profileImageResId = null,
-                levelUpPoints = 5000 // Le daremos puntos de bienvenida al de prueba
+                levelUpPoints = 5000
             )
             allUsers = listOf(defaultUser)
             saveAllUsers()
@@ -136,30 +138,24 @@ class UserViewModel(context: Context) : ViewModel() {
     private fun saveAllUsers() {
         try {
             val usersJson = gson.toJson(allUsers)
-            // Forma KTX (corregido)
             sharedPreferences.edit { putString(allUsersKey, usersJson) }
-        } catch (e: Exception) { println("Error saving all users: ${e.message}") }
+        } catch (_: Exception) {
+        }
     }
 
-    // --- ¡¡FUNCIÓN ACTUALIZADA!! ---
-    // Ahora acepta al usuario que refirió para darle puntos
     fun registerUser(newUser: User, referringUser: User?) {
         var usersToUpdate = this.allUsers
 
         if (referringUser != null) {
-            // Recompensa para el usuario que refirió
-            // (1000 puntos es un premio lógico)
             val updatedReferringUser = referringUser.copy(
                 levelUpPoints = referringUser.levelUpPoints + 1000
             )
 
-            // Reemplaza al usuario antiguo por el actualizado en la lista
             usersToUpdate = usersToUpdate.map {
                 if (it.id == referringUser.id) updatedReferringUser else it
             }
         }
 
-        // Añade el nuevo usuario (que ya tiene sus puntos base + bono)
         this.allUsers = usersToUpdate + newUser
         saveAllUsers()
     }
@@ -179,10 +175,10 @@ class UserViewModel(context: Context) : ViewModel() {
         val updatedOrders = orders + order
         try {
             val ordersJson = gson.toJson(updatedOrders)
-            // Forma KTX (corregido)
             sharedPreferences.edit { putString("$ordersKeyPrefix$currentUserId", ordersJson) }
             orders = updatedOrders
-        } catch (e: Exception) { println("Error saving orders: ${e.message}") }
+        } catch (_: Exception) {
+        }
     }
 
     private fun loadOrders(userId: String) {
@@ -191,11 +187,14 @@ class UserViewModel(context: Context) : ViewModel() {
             try {
                 val listType = object : TypeToken<List<Order>>() {}.type
                 gson.fromJson(ordersJson, listType) ?: emptyList()
-            } catch (e: Exception) { println("Error loading orders: ${e.message}"); emptyList() }
-        } else { emptyList() }
+            } catch (_: Exception) {
+                emptyList()
+            }
+        } else {
+            emptyList()
+        }
     }
 }
-// --- Fin del ViewModel ---
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -210,7 +209,6 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun GamerStoreApp(userViewModel: UserViewModel) {
     val navController = rememberNavController()
@@ -224,7 +222,6 @@ fun GamerStoreApp(userViewModel: UserViewModel) {
     var selectedProduct by remember { mutableStateOf<Product?>(null) }
     val context = LocalContext.current
 
-    // --- Lógica de Negocio (sin cambios) ---
     val onAddToCart: (Product) -> Unit = { shoppingCart[it] = (shoppingCart[it] ?: 0) + 1 }
     val onDecreaseQuantity: (Product) -> Unit = {
         val qty = shoppingCart[it] ?: 0
@@ -260,7 +257,11 @@ fun GamerStoreApp(userViewModel: UserViewModel) {
     val onPaymentSuccess: () -> Unit = {
         currentUser?.let { user ->
             val orderItems = shoppingCart.map { (product, quantity) ->
-                OrderItem(productName = product.name, quantity = quantity, pricePerUnit = product.price)
+                OrderItem(
+                    productName = product.name,
+                    quantity = quantity,
+                    pricePerUnit = product.price
+                )
             }
             val totalAmount = orderItems.sumOf { it.pricePerUnit * it.quantity }
             val newOrder = Order(items = orderItems, totalAmount = totalAmount, userId = user.id)
@@ -277,7 +278,6 @@ fun GamerStoreApp(userViewModel: UserViewModel) {
             navController.navigate(Screen.CATALOG.name) { popUpTo(Screen.CART.name) { inclusive = true }; launchSingleTop = true }
         }
     }
-    // --- Fin Lógica ---
 
     ModalNavigationDrawer(
         drawerState = drawerState,
@@ -285,10 +285,9 @@ fun GamerStoreApp(userViewModel: UserViewModel) {
             ModalDrawerSheet(drawerContainerColor = ColorPrimaryBackground) {
                 Spacer(Modifier.height(12.dp))
                 Text("Menú Level-Up", modifier = Modifier.padding(16.dp), style = MaterialTheme.typography.titleMedium, color = ColorAccentNeon, fontFamily = Orbitron)
-                // --- ¡CORREGIDO! Divider obsoleto cambiado a HorizontalDivider ---
                 HorizontalDivider(color= Color.DarkGray)
                 NavigationDrawerItem(
-                    icon = { Icon(Icons.Default.List, "Productos", tint = ColorTextPrimary) },
+                    icon = { Icon(Icons.AutoMirrored.Filled.List, "Productos", tint = ColorTextPrimary) },
                     label = { Text("Productos", color = ColorTextPrimary) },
                     selected = currentRoute == Screen.CATALOG.name,
                     onClick = { scope.launch { drawerState.close() }; navController.navigate(Screen.CATALOG.name) { launchSingleTop = true } },
@@ -310,9 +309,9 @@ fun GamerStoreApp(userViewModel: UserViewModel) {
                         val phoneNumber = "+56941454288"
                         val message = "¡Hola! Necesito soporte técnico de Level-Up Gamer."
                         try {
-                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://api.whatsapp.com/send?phone=$phoneNumber&text=${Uri.encode(message)}"))
+                            val intent = Intent(Intent.ACTION_VIEW, "https://api.whatsapp.com/send?phone=$phoneNumber&text=${Uri.encode(message)}".toUri())
                             context.startActivity(intent)
-                        } catch (e: Exception) { Toast.makeText(context, "No se pudo abrir WhatsApp.", Toast.LENGTH_SHORT).show() }
+                        } catch (_: Exception) { Toast.makeText(context, "No se pudo abrir WhatsApp.", Toast.LENGTH_SHORT).show() }
                     },
                     colors = NavigationDrawerItemDefaults.colors(unselectedContainerColor = Color.Transparent)
                 )
@@ -334,7 +333,7 @@ fun GamerStoreApp(userViewModel: UserViewModel) {
                         cartItemCount = shoppingCart.values.sum(),
                         navigationIcon = {
                             if (canGoBack) {
-                                IconButton(onClick = { navController.navigateUp() }) { Icon(Icons.Filled.ArrowBack, "Volver", tint = ColorTextPrimary) }
+                                IconButton(onClick = { navController.navigateUp() }) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Volver", tint = ColorTextPrimary) }
                             } else {
                                 IconButton(onClick = { scope.launch { drawerState.open() } }) { Icon(Icons.Filled.Menu, "Abrir Menú", tint = ColorTextPrimary) }
                             }
@@ -349,7 +348,6 @@ fun GamerStoreApp(userViewModel: UserViewModel) {
             },
             containerColor = ColorPrimaryBackground
         ) { innerPadding ->
-            // --- NavHost ---
             NavHost(
                 navController = navController,
                 startDestination = if (userViewModel.currentUser == null) Screen.AUTH.name else Screen.CATALOG.name,
@@ -361,7 +359,13 @@ fun GamerStoreApp(userViewModel: UserViewModel) {
                         onAuthSuccess = onAuthSuccess
                     )
                 }
-                composable(Screen.CATALOG.name) { CatalogScreen(products = mockProducts, onAddToCart = onAddToCart, onProductClick = onProductClick) }
+                composable(Screen.CATALOG.name) {
+                    CatalogScreen(
+                        products = mockProducts,
+                        onAddToCart = onAddToCart,
+                        onProductClick = onProductClick
+                    )
+                }
 
                 composable(Screen.CART.name) {
                     val userEmail = userViewModel.currentUser?.email ?: ""
@@ -377,7 +381,12 @@ fun GamerStoreApp(userViewModel: UserViewModel) {
                 }
                 composable(Screen.PRODUCT_DETAIL.name) {
                     selectedProduct?.let { product ->
-                        ProductDetailScreen(product = product, onAddToCart = onAddToCart, onDecreaseQuantity = onDecreaseQuantity, cart = shoppingCart)
+                        ProductDetailScreen(
+                            product = product,
+                            onAddToCart = onAddToCart,
+                            onDecreaseQuantity = onDecreaseQuantity,
+                            cart = shoppingCart
+                        )
                     } ?: run { LaunchedEffect(Unit) { navController.popBackStack() } }
                 }
                 composable(Screen.PROFILE.name) {
@@ -396,33 +405,28 @@ fun GamerStoreApp(userViewModel: UserViewModel) {
                     AboutUsScreen()
                 }
             }
-            // --- Fin NavHost ---
         }
     }
 }
 
-// --- Composable Barra Inferior (CORREGIDO) ---
 @Composable
 fun BottomNavigationBar(navController: NavHostController, currentRoute: String?, isAuthenticated: Boolean) {
     NavigationBar(containerColor = Color.DarkGray.copy(alpha=0.9f)) {
-        // --- Item Productos ---
         NavigationBarItem(
-            icon = { Icon(Icons.Filled.List, "Productos", tint = if (currentRoute == Screen.CATALOG.name) ColorAccentNeon else ColorTextSecondary) },
+            icon = { Icon(Icons.AutoMirrored.Filled.List, "Productos", tint = if (currentRoute == Screen.CATALOG.name) ColorAccentNeon else ColorTextSecondary) },
             label = { Text("Productos", color = if (currentRoute == Screen.CATALOG.name) ColorAccentNeon else ColorTextSecondary, fontSize = 10.sp) },
             selected = currentRoute == Screen.CATALOG.name,
             onClick = {
                 navController.navigate(Screen.CATALOG.name) {
-                    // ESTA ES LA LÓGICA CORRECTA
                     popUpTo(navController.graph.startDestinationId)
                     launchSingleTop = true
                 }
             },
             colors = NavigationBarItemDefaults.colors(indicatorColor = ColorAccentNeon.copy(alpha = 0.1f))
         )
-        // --- Item Perfil/Login ---
         NavigationBarItem(
             icon = {
-                val icon = if (isAuthenticated) Icons.Filled.AccountCircle else Icons.Filled.Login
+                val icon = if (isAuthenticated) Icons.Filled.AccountCircle else Icons.AutoMirrored.Filled.Login
                 val color = if (currentRoute == Screen.PROFILE.name || currentRoute == Screen.AUTH.name) ColorAccentNeon else ColorTextSecondary
                 Icon(icon, "Perfil/Login", tint = color)
             },
@@ -435,21 +439,18 @@ fun BottomNavigationBar(navController: NavHostController, currentRoute: String?,
             onClick = {
                 val destination = if (isAuthenticated) Screen.PROFILE.name else Screen.AUTH.name
                 navController.navigate(destination) {
-                    // ESTA ES LA LÓGICA CORRECTA
                     popUpTo(navController.graph.startDestinationId)
                     launchSingleTop = true
                 }
             },
             colors = NavigationBarItemDefaults.colors(indicatorColor = ColorAccentNeon.copy(alpha = 0.1f))
         )
-        // --- Item Pedidos ---
         NavigationBarItem(
-            icon = { Icon(Icons.Filled.ReceiptLong, "Pedidos", tint = if (currentRoute == Screen.ORDERS.name) ColorAccentNeon else ColorTextSecondary) },
+            icon = { Icon(Icons.AutoMirrored.Filled.ReceiptLong, "Pedidos", tint = if (currentRoute == Screen.ORDERS.name) ColorAccentNeon else ColorTextSecondary) },
             label = { Text("Pedidos", color = if (currentRoute == Screen.ORDERS.name) ColorAccentNeon else ColorTextSecondary, fontSize = 10.sp) },
             selected = currentRoute == Screen.ORDERS.name,
             onClick = {
                 navController.navigate(Screen.ORDERS.name) {
-                    // ESTA ES LA LÓGICA CORRECTA
                     popUpTo(navController.graph.startDestinationId)
                     launchSingleTop = true
                 }

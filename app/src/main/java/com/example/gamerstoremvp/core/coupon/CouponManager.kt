@@ -1,4 +1,4 @@
-package com.example.gamerstoremvp
+package com.example.gamerstoremvp.core.coupon
 
 class CouponManager {
 

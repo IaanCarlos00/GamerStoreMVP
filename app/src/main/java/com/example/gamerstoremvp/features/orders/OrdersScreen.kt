@@ -1,4 +1,4 @@
-package com.example.gamerstoremvp // SOLO UNA VEZ
+package com.example.gamerstoremvp.features.orders // SOLO UNA VEZ
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -19,15 +19,15 @@ import java.text.SimpleDateFormat // Para formatear la fecha
 import java.util.* // Para Date y Locale
 
 // Importaciones de tu tema y datos
-import com.example.gamerstoremvp.ColorAccentBlue
-import com.example.gamerstoremvp.ColorAccentNeon
-import com.example.gamerstoremvp.ColorPrimaryBackground
-import com.example.gamerstoremvp.ColorTextPrimary
-import com.example.gamerstoremvp.ColorTextSecondary
-import com.example.gamerstoremvp.Orbitron
-import com.example.gamerstoremvp.Roboto
-import com.example.gamerstoremvp.formatPrice // Función para formatear precios
-import com.example.gamerstoremvp.Order // Importa la data class Order que definimos antes
+import com.example.gamerstoremvp.core.theme.ColorAccentBlue
+import com.example.gamerstoremvp.core.theme.ColorAccentNeon
+import com.example.gamerstoremvp.core.theme.ColorPrimaryBackground
+import com.example.gamerstoremvp.core.theme.ColorTextPrimary
+import com.example.gamerstoremvp.core.theme.ColorTextSecondary
+import com.example.gamerstoremvp.core.theme.Orbitron
+import com.example.gamerstoremvp.core.theme.Roboto
+import com.example.gamerstoremvp.core.theme.formatPrice // Función para formatear precios
+import com.example.gamerstoremvp.core.theme.Order // Importa la data class Order que definimos antes
 
 /**
  * Pantalla que muestra la lista de pedidos del usuario.

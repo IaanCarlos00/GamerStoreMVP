@@ -1,11 +1,10 @@
-package com.example.gamerstoremvp
+package com.example.gamerstoremvp.features.profile
 
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -16,12 +15,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
 // Importaciones de tu tema
-import com.example.gamerstoremvp.ColorAccentNeon
-import com.example.gamerstoremvp.ColorPrimaryBackground
-import com.example.gamerstoremvp.ColorTextPrimary
-import com.example.gamerstoremvp.ColorTextSecondary
-import com.example.gamerstoremvp.Orbitron
-import com.example.gamerstoremvp.Roboto
+import com.example.gamerstoremvp.core.theme.ColorAccentNeon
+import com.example.gamerstoremvp.core.theme.ColorPrimaryBackground
+import com.example.gamerstoremvp.core.theme.ColorTextPrimary
+import com.example.gamerstoremvp.core.theme.ColorTextSecondary
+import com.example.gamerstoremvp.core.theme.Orbitron
+import com.example.gamerstoremvp.core.theme.Roboto
 
 @Composable
 fun AboutUsScreen() {

@@ -1,4 +1,4 @@
-package com.example.gamerstoremvp
+package com.example.gamerstoremvp.ui.theme.components
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Row
@@ -14,12 +14,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 // Tus importaciones de tema
-import com.example.gamerstoremvp.ColorAccentNeon
-import com.example.gamerstoremvp.ColorPrimaryBackground
-import com.example.gamerstoremvp.ColorTextPrimary
-import com.example.gamerstoremvp.ColorTextSecondary
-import com.example.gamerstoremvp.Orbitron
-import com.example.gamerstoremvp.Roboto
+import com.example.gamerstoremvp.core.theme.ColorAccentNeon
+import com.example.gamerstoremvp.core.theme.ColorPrimaryBackground
+import com.example.gamerstoremvp.core.theme.ColorTextPrimary
+import com.example.gamerstoremvp.core.theme.ColorTextSecondary
+import com.example.gamerstoremvp.core.theme.Orbitron
+import com.example.gamerstoremvp.core.theme.Roboto
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

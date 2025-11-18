@@ -1,4 +1,4 @@
-package com.example.gamerstoremvp
+package com.example.gamerstoremvp.features.catalog
 
 import android.annotation.SuppressLint
 import androidx.compose.foundation.Image
@@ -29,16 +29,16 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 // Importaciones de datos y tema
-import com.example.gamerstoremvp.ColorAccentBlue
-import com.example.gamerstoremvp.ColorAccentNeon
-import com.example.gamerstoremvp.ColorPrimaryBackground
-import com.example.gamerstoremvp.ColorTextPrimary
-import com.example.gamerstoremvp.ColorTextSecondary
-import com.example.gamerstoremvp.Orbitron
-import com.example.gamerstoremvp.Product
-import com.example.gamerstoremvp.Roboto
-import com.example.gamerstoremvp.formatPrice
-import com.example.gamerstoremvp.mockProducts
+import com.example.gamerstoremvp.core.theme.ColorAccentBlue
+import com.example.gamerstoremvp.core.theme.ColorAccentNeon
+import com.example.gamerstoremvp.core.theme.ColorPrimaryBackground
+import com.example.gamerstoremvp.core.theme.ColorTextPrimary
+import com.example.gamerstoremvp.core.theme.ColorTextSecondary
+import com.example.gamerstoremvp.core.theme.Orbitron
+import com.example.gamerstoremvp.core.theme.Product
+import com.example.gamerstoremvp.core.theme.Roboto
+import com.example.gamerstoremvp.core.theme.formatPrice
+import com.example.gamerstoremvp.core.theme.mockProducts
 
 
 

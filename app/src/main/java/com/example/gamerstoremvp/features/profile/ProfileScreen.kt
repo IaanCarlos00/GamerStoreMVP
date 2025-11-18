@@ -1,4 +1,4 @@
-package com.example.gamerstoremvp
+package com.example.gamerstoremvp.features.profile
 
 
 import android.widget.Toast // <-- ¡NUEVA IMPORTACIÓN!
@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Edit
@@ -17,7 +16,6 @@ import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.filled.Star
 // --- ¡NUEVAS IMPORTACIONES! ---
 import androidx.compose.material.icons.filled.Redeem
-import androidx.compose.material.icons.filled.Warning
 // ------------------------------
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -33,15 +31,19 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.gamerstoremvp.R
 
 // Importaciones de tu tema
-import com.example.gamerstoremvp.ColorAccentBlue
-import com.example.gamerstoremvp.ColorAccentNeon
-import com.example.gamerstoremvp.ColorPrimaryBackground
-import com.example.gamerstoremvp.ColorTextSecondary
-import com.example.gamerstoremvp.ColorTextPrimary
-import com.example.gamerstoremvp.Orbitron
-import com.example.gamerstoremvp.Roboto
+import com.example.gamerstoremvp.core.theme.ColorAccentBlue
+import com.example.gamerstoremvp.core.theme.ColorAccentNeon
+import com.example.gamerstoremvp.core.theme.ColorPrimaryBackground
+import com.example.gamerstoremvp.core.theme.ColorTextSecondary
+import com.example.gamerstoremvp.core.theme.ColorTextPrimary
+import com.example.gamerstoremvp.core.theme.Orbitron
+import com.example.gamerstoremvp.core.theme.Roboto
+import com.example.gamerstoremvp.core.theme.User
+import com.example.gamerstoremvp.core.theme.formatPrice
+import com.example.gamerstoremvp.features.auth.AuthTextField
 
 @Composable
 fun ProfileScreen(
@@ -265,7 +267,11 @@ fun ProfileScreen(
                         modifier = Modifier.padding(top = 8.dp)
                     )
                     Text(
-                        text = "Úsalo en tu carrito de compras para obtener ${formatPrice(generatedCoupon.removePrefix("LEVELUP").toInt())} de descuento.",
+                        text = "Úsalo en tu carrito de compras para obtener ${
+                            formatPrice(
+                                generatedCoupon.removePrefix("LEVELUP").toInt()
+                            )
+                        } de descuento.",
                         fontFamily = Roboto,
                         color = ColorTextSecondary,
                         modifier = Modifier.padding(top = 16.dp)
