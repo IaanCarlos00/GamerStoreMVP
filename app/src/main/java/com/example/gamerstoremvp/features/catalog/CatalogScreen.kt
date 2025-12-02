@@ -3,7 +3,7 @@ package com.example.gamerstoremvp.features.catalog
 import android.annotation.SuppressLint
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable // Asegúrate de tener esta importación
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -23,81 +23,83 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-// Importaciones de datos y tema
-import com.example.gamerstoremvp.core.theme.ColorAccentBlue
-import com.example.gamerstoremvp.core.theme.ColorAccentNeon
-import com.example.gamerstoremvp.core.theme.ColorPrimaryBackground
-import com.example.gamerstoremvp.core.theme.ColorTextPrimary
-import com.example.gamerstoremvp.core.theme.ColorTextSecondary
-import com.example.gamerstoremvp.core.theme.Orbitron
-import com.example.gamerstoremvp.core.theme.Product
-import com.example.gamerstoremvp.core.theme.Roboto
-import com.example.gamerstoremvp.core.theme.formatPrice
-import com.example.gamerstoremvp.core.theme.mockProducts
-
-
+import androidx.lifecycle.viewmodel.compose.viewModel
+import coil.compose.AsyncImage
+import coil.request.ImageRequest
+import com.example.gamerstoremvp.core.theme.*
+import com.example.gamerstoremvp.models.Product
 
 @Composable
 fun CatalogScreen(
-    products: List<Product>,
-    onAddToCart: (Product) -> Unit,
-    onProductClick: (Product) -> Unit
+    viewModel: ProductViewModel = viewModel(),
+    onProductClick: (Int) -> Unit // Pass the product ID
 ) {
+    val uiState by viewModel.uiState.collectAsState()
 
-    var selectedCategory by remember { mutableStateOf("Todos") }
+    Box(modifier = Modifier
+        .fillMaxSize()
+        .background(ColorPrimaryBackground)) {
+        when (val state = uiState) {
+            is ProductListUiState.Loading -> {
+                CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+            }
+            is ProductListUiState.Success -> {
+                // CORRECCIÓN: Accedemos a la lista de productos directamente.
+                ProductGrid(products = state.products, onProductClick = onProductClick)
+            }
+            is ProductListUiState.Error -> {
+                Text(
+                    text = state.message,
+                    color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.align(Alignment.Center)
+                )
+            }
+        }
+    }
+}
 
+@Composable
+fun ProductGrid(
+    products: List<Product>,
+    onProductClick: (Int) -> Unit
+) {
     var searchQuery by remember { mutableStateOf("") }
 
-
-    val filteredProducts = remember(selectedCategory, searchQuery, products) {
-        products
-            .filter { product ->
-
-                if (selectedCategory == "Todos") true else product.category == selectedCategory
-            }
-            .filter { product ->
-
+    val filteredProducts = remember(searchQuery, products) {
+        products.filter { product ->
                 product.name.contains(searchQuery, ignoreCase = true)
             }
     }
 
     LazyVerticalGrid(
         columns = GridCells.Fixed(2),
-        modifier = Modifier.fillMaxSize().background(ColorPrimaryBackground),
+        modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(16.dp),
         horizontalArrangement = Arrangement.spacedBy(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         item(span = { GridItemSpan(maxLineSpan) }) {
             Column {
-                WelcomeBanner(
-                    onTitleClick = {
-                        selectedCategory = "Todos"
-                        searchQuery = ""
-                    }
-                )
-
-                SearchBarAndFilters(
+                WelcomeBanner(onTitleClick = {
+                    searchQuery = ""
+                })
+                SearchBar(
                     searchQuery = searchQuery,
-                    onSearchQueryChange = { newQuery -> searchQuery = newQuery },
-                    selectedCategory = selectedCategory,
-                    onCategorySelected = { newCategory -> selectedCategory = newCategory }
+                    onSearchQueryChange = { newQuery -> searchQuery = newQuery }
                 )
             }
         }
 
-
         items(filteredProducts) { product ->
-
             ProductGridCard(
                 product = product,
-                onAddToCart = onAddToCart,
-                onProductClick = onProductClick
+                onProductClick = { onProductClick(product.id) }
             )
         }
     }
@@ -139,13 +141,10 @@ fun WelcomeBanner(onTitleClick: () -> Unit) {
     }
 }
 
-
 @Composable
-fun SearchBarAndFilters(
+fun SearchBar(
     searchQuery: String,
-    onSearchQueryChange: (String) -> Unit,
-    selectedCategory: String,
-    onCategorySelected: (String) -> Unit
+    onSearchQueryChange: (String) -> Unit
 ) {
     Column {
         OutlinedTextField(
@@ -167,51 +166,30 @@ fun SearchBarAndFilters(
                 unfocusedContainerColor = Color.DarkGray.copy(alpha = 0.1f)
             )
         )
-
         Spacer(modifier = Modifier.height(16.dp))
-
-        LazyRow(
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            val categories = listOf("Todos") + mockProducts.map { it.category }.distinct()
-            items(categories) { category ->
-                Button(
-                    onClick = { onCategorySelected(category) },
-                    shape = RoundedCornerShape(8.dp),
-                    colors = ButtonDefaults.buttonColors(
-
-                        containerColor = if (category == selectedCategory) ColorAccentBlue else Color.DarkGray,
-                        contentColor = ColorTextPrimary
-                    ),
-                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
-                ) {
-                    Text(category, fontFamily = Roboto, fontSize = 12.sp)
-                }
-            }
-        }
     }
 }
-
 
 @SuppressLint("DefaultLocale")
 @Composable
 fun ProductGridCard(
     product: Product,
-    onAddToCart: (Product) -> Unit,
-    onProductClick: (Product) -> Unit
+    onProductClick: () -> Unit
 ) {
     Card(
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = Color.DarkGray.copy(alpha = 0.9f)),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
-
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onProductClick(product) }
+            .clickable { onProductClick() }
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {
-            Image(
-                painter = painterResource(id = product.imageResId),
+            AsyncImage(
+                model = ImageRequest.Builder(LocalContext.current)
+                    .data(product.imageUrl)
+                    .crossfade(true)
+                    .build(),
                 contentDescription = product.name,
                 modifier = Modifier
                     .fillMaxWidth()
@@ -220,19 +198,13 @@ fun ProductGridCard(
                 contentScale = ContentScale.Crop
             )
             Column(modifier = Modifier.padding(8.dp)) {
-
-                Text(
-                    text = product.category,
-                    fontFamily = Roboto,
-                    fontSize = 10.sp,
-                    color = ColorTextSecondary
-                )
                 Text(
                     text = product.name,
                     fontFamily = Roboto,
                     fontWeight = FontWeight.Bold,
                     fontSize = 14.sp,
-                    color = ColorTextPrimary
+                    color = ColorTextPrimary,
+                    maxLines = 2
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -244,7 +216,7 @@ fun ProductGridCard(
                     )
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
-                        text = "${String.format("%.1f", product.rating)} (${product.reviewCount})",
+                        text = "${product.rating} (${product.reviews})",
                         fontFamily = Roboto,
                         fontSize = 12.sp,
                         color = ColorTextSecondary
@@ -264,7 +236,7 @@ fun ProductGridCard(
                         color = ColorAccentBlue
                     )
                     IconButton(
-                        onClick = { onAddToCart(product) },
+                        onClick = { /* TODO: Add to cart */ },
                         modifier = Modifier
                             .clip(RoundedCornerShape(8.dp))
                             .size(36.dp)

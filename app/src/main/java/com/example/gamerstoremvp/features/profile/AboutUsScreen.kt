@@ -41,7 +41,6 @@ fun AboutUsScreen() {
             modifier = Modifier.padding(bottom = 24.dp)
         )
 
-        // Puedes añadir aquí un logo si quieres con Image()
 
         Text(
             text = "¡Bienvenidos a Level-Up Gamer!",
@@ -80,6 +79,6 @@ fun AboutUsScreen() {
             modifier = Modifier.padding(bottom = 24.dp)
         )
 
-        // Puedes añadir información de contacto, redes sociales, etc. aquí
+
     }
 }

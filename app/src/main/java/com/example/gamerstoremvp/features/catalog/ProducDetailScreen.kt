@@ -6,7 +6,6 @@ import android.widget.Toast
 import androidx.compose.animation.*
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -24,41 +23,84 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import com.example.gamerstoremvp.core.data.AppDatabase
 import com.example.gamerstoremvp.core.data.ReviewRepository
 import com.example.gamerstoremvp.core.theme.*
+import com.example.gamerstoremvp.models.Product
 
 @OptIn(ExperimentalAnimationApi::class)
 @Composable
 fun ProductDetailScreen(
-    product: Product,
+    productCode: String,
     onAddToCart: (Product) -> Unit,
     onDecreaseQuantity: (Product) -> Unit,
-    cart: Map<Product, Int>
+    cart: Map<Int, Int>
 ) {
-
     val context = LocalContext.current
-
     val database = AppDatabase.getDatabase(context)
     val reviewRepository = ReviewRepository(database.reviewDao())
     val viewModel: ProductDetailViewModel = viewModel(
-        factory = ProductDetailViewModelFactory(reviewRepository, product.code)
+        factory = ProductDetailViewModelFactory(reviewRepository, productCode)
     )
 
-    val reviews by viewModel.reviews.collectAsStateWithLifecycle()
+    val productState by viewModel.product.collectAsStateWithLifecycle()
 
+    when (val state = productState) {
+        is ProductDetailUiState.Loading -> {
+            Box(modifier = Modifier.fillMaxSize().background(ColorPrimaryBackground)) {
+                CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+            }
+        }
+        is ProductDetailUiState.Error -> {
+            Box(
+                modifier = Modifier.fillMaxSize().background(ColorPrimaryBackground),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = state.message,
+                    color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.padding(16.dp)
+                )
+            }
+        }
+        is ProductDetailUiState.Success -> {
+            val reviews by viewModel.reviews.collectAsStateWithLifecycle()
+            ProductDetailContent(
+                product = state.product,
+                reviews = reviews,
+                onAddToCart = onAddToCart,
+                onDecreaseQuantity = onDecreaseQuantity,
+                cart = cart,
+                viewModel = viewModel
+            )
+        }
+    }
+}
+
+@OptIn(ExperimentalAnimationApi::class)
+@Composable
+private fun ProductDetailContent(
+    product: Product,
+    reviews: List<Review>,
+    onAddToCart: (Product) -> Unit,
+    onDecreaseQuantity: (Product) -> Unit,
+    cart: Map<Int, Int>,
+    viewModel: ProductDetailViewModel
+) {
+    val context = LocalContext.current
     var userRating by remember { mutableIntStateOf(0) }
     var userReview by remember { mutableStateOf("") }
     var showReviewForm by remember { mutableStateOf(false) }
-
     val keyboardController = LocalSoftwareKeyboardController.current
-    val currentQuantity = cart[product] ?: 0
+
+    val currentQuantity = cart[product.id] ?: 0
 
     var showRemoveDialog by remember { mutableStateOf(false) }
     var showSuccessDialog by remember { mutableStateOf(false) }
@@ -70,7 +112,6 @@ fun ProductDetailScreen(
             .verticalScroll(rememberScrollState())
             .padding(16.dp)
     ) {
-
         Card(
             shape = RoundedCornerShape(12.dp),
             colors = CardDefaults.cardColors(containerColor = Color.DarkGray.copy(alpha = 0.5f)),
@@ -78,8 +119,11 @@ fun ProductDetailScreen(
         ) {
             Column {
                 Box {
-                    Image(
-                        painter = painterResource(id = product.imageResId),
+                    AsyncImage(
+                        model = ImageRequest.Builder(LocalContext.current)
+                            .data(product.imageUrl)
+                            .crossfade(true)
+                            .build(),
                         contentDescription = product.name,
                         modifier = Modifier
                             .fillMaxWidth()
@@ -87,7 +131,6 @@ fun ProductDetailScreen(
                             .clip(RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp)),
                         contentScale = ContentScale.Crop
                     )
-
                     IconButton(
                         onClick = { shareProduct(context, product) },
                         modifier = Modifier
@@ -120,6 +163,22 @@ fun ProductDetailScreen(
                         fontWeight = FontWeight.Bold,
                         color = ColorAccentBlue
                     )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Default.Star,
+                            contentDescription = "Calificación",
+                            tint = ColorAccentNeon,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = "${product.rating} (${product.reviews} reseñas)",
+                            fontFamily = Roboto,
+                            fontSize = 14.sp,
+                            color = ColorTextSecondary
+                        )
+                    }
                     Spacer(modifier = Modifier.height(16.dp))
 
                     ProductQuantityControl(
@@ -152,39 +211,6 @@ fun ProductDetailScreen(
                         fontSize = 14.sp,
                         color = ColorTextPrimary
                     )
-
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Text(
-                        text = "Fabricante / Distribuidor",
-                        fontFamily = Roboto,
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = ColorTextSecondary
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = product.manufacturer,
-                        fontFamily = Roboto,
-                        fontSize = 14.sp,
-                        color = ColorTextPrimary
-                    )
-                    product.materials?.let {
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Text(
-                            text = "Materiales",
-                            fontFamily = Roboto,
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = ColorTextSecondary
-                        )
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(
-                            text = it,
-                            fontFamily = Roboto,
-                            fontSize = 14.sp,
-                            color = ColorTextPrimary
-                        )
-                    }
                 }
             }
         }
@@ -351,7 +377,9 @@ fun ProductDetailScreen(
 private fun shareProduct(context: Context, product: Product) {
     val sendIntent: Intent = Intent().apply {
         action = Intent.ACTION_SEND
-        putExtra(Intent.EXTRA_TEXT, "¡Mira este producto en Level-Up Gamer! \n${product.name} - ${formatPrice(product.price)}\n(Aquí iría un link al producto)")
+        putExtra(Intent.EXTRA_TEXT, """¡Mira este producto en Level-Up Gamer!
+${product.name} - ${formatPrice(product.price)}
+(Aquí iría un link al producto)""")
         type = "text/plain"
     }
 

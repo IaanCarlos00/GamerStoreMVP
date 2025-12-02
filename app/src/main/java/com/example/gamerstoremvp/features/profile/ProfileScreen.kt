@@ -52,17 +52,16 @@ fun ProfileScreen(
     onUserUpdate: (User) -> Unit
 ) {
 
-    // Estados para los campos de perfil
+
     var name by remember { mutableStateOf(user.name) }
     var phone by remember { mutableStateOf(user.phone) }
     var address by remember { mutableStateOf(user.address) }
 
-    // --- ¡NUEVOS ESTADOS PARA CANJEAR PUNTOS! ---
+
     var pointsToRedeemStr by remember { mutableStateOf("") }
     var showCouponDialog by remember { mutableStateOf(false) }
     var generatedCoupon by remember { mutableStateOf("") }
     val context = LocalContext.current
-    // ------------------------------------------
 
     Column(
         modifier = Modifier
@@ -106,7 +105,7 @@ fun ProfileScreen(
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        // Tarjetas de Puntos y Referido (como antes)
+
         InfoCard(
             title = "MIS PUNTOS LEVEL-UP",
             content = "${user.levelUpPoints} Pts",
@@ -120,7 +119,7 @@ fun ProfileScreen(
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        // --- ¡NUEVA TARJETA PARA CANJEAR PUNTOS! ---
+
         Card(
             shape = RoundedCornerShape(12.dp),
             colors = CardDefaults.cardColors(containerColor = Color.DarkGray.copy(alpha = 0.7f)),
@@ -143,7 +142,7 @@ fun ProfileScreen(
                 )
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Campo para ingresar puntos
+
                 AuthTextField(
                     value = pointsToRedeemStr,
                     onValueChange = { pointsToRedeemStr = it.filter { c -> c.isDigit() } },
@@ -152,7 +151,7 @@ fun ProfileScreen(
                 )
                 Spacer(modifier = Modifier.height(8.dp))
 
-                // Botón Canjear
+
                 Button(
                     onClick = {
                         val pointsToRedeem = pointsToRedeemStr.toIntOrNull() ?: 0
@@ -162,15 +161,15 @@ fun ProfileScreen(
                         } else if (pointsToRedeem > user.levelUpPoints) {
                             Toast.makeText(context, "No tienes suficientes puntos", Toast.LENGTH_SHORT).show()
                         } else {
-                            // Lógica de canje
+
                             val newPoints = user.levelUpPoints - pointsToRedeem
                             val updatedUser = user.copy(levelUpPoints = newPoints)
                             onUserUpdate(updatedUser) // Actualiza el usuario
 
                             // Genera el cupón
-                            generatedCoupon = "LEVELUP$pointsToRedeem" // Ej: LEVELUP5000
-                            showCouponDialog = true // Muestra el diálogo
-                            pointsToRedeemStr = "" // Limpia el campo
+                            generatedCoupon = "LEVELUP$pointsToRedeem"
+                            showCouponDialog = true
+                            pointsToRedeemStr = ""
                         }
                     },
                     modifier = Modifier.fillMaxWidth().height(50.dp),
@@ -181,11 +180,11 @@ fun ProfileScreen(
                 }
             }
         }
-        // ------------------------------------------
+
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        // Campos de perfil (como antes)
+
         AuthTextField(
             value = user.email,
             onValueChange = {},
@@ -213,7 +212,7 @@ fun ProfileScreen(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Botones (como antes)
+
         Button(
             onClick = {
                 val updatedUser = user.copy(
@@ -249,7 +248,7 @@ fun ProfileScreen(
         }
     }
 
-    // --- ¡NUEVO DIÁLOGO PARA MOSTRAR EL CUPÓN! ---
+
     if (showCouponDialog) {
         AlertDialog(
             onDismissRequest = { showCouponDialog = false },
@@ -267,9 +266,9 @@ fun ProfileScreen(
                         modifier = Modifier.padding(top = 8.dp)
                     )
                     Text(
-                        text = "Úsalo en tu carrito de compras para obtener ${
+                        text = "Úsalo en tu carrito de compras para obtener ${// CORREGIDO: Se convierte a Double
                             formatPrice(
-                                generatedCoupon.removePrefix("LEVELUP").toInt()
+                                generatedCoupon.removePrefix("LEVELUP").toInt().toDouble()
                             )
                         } de descuento.",
                         fontFamily = Roboto,
@@ -289,7 +288,7 @@ fun ProfileScreen(
 }
 
 
-// --- Composable InfoCard (sin cambios) ---
+
 @Composable
 fun InfoCard(title: String, content: String, icon: ImageVector) {
     Card(

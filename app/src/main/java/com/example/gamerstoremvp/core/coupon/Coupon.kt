@@ -3,10 +3,10 @@ package com.example.gamerstoremvp.core.coupon
 data class Coupon(
     val code: String,
     val type: CouponType,
-    val value: Double // Puede ser monto fijo o porcentaje
+    val value: Double
 )
 
 enum class CouponType {
-    FIXED_AMOUNT, // Monto fijo (ej: 10 €)
-    PERCENTAGE    // Porcentaje (ej: 20%)
+    FIXED_AMOUNT,
+    PERCENTAGE
 }

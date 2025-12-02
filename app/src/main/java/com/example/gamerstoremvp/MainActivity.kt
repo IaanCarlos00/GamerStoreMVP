@@ -35,14 +35,20 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.*
 import com.example.gamerstoremvp.core.theme.*
+
+// --- Importaciones de tu Proyecto ---
 import com.example.gamerstoremvp.features.auth.AuthScreen
 import com.example.gamerstoremvp.features.cart.CartScreen
 import com.example.gamerstoremvp.features.cart.CheckoutScreen
 import com.example.gamerstoremvp.features.catalog.CatalogScreen
 import com.example.gamerstoremvp.features.catalog.ProductDetailScreen
+import com.example.gamerstoremvp.models.Product
 import com.example.gamerstoremvp.features.orders.OrdersScreen
 import com.example.gamerstoremvp.features.profile.AboutUsScreen
 import com.example.gamerstoremvp.features.profile.ProfileScreen
+
+// --- NUEVA IMPORTACIÓN: MAPA ---
+import com.example.gamerstoremvp.features.events.EventsMapScreen
 
 // --- Importaciones de Coroutines ---
 import kotlinx.coroutines.launch
@@ -51,7 +57,7 @@ import kotlinx.coroutines.launch
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 
-// --- Importaciones de tu Proyecto ---
+// --- Importaciones de tu Proyecto (Tema) ---
 import com.example.gamerstoremvp.ui.theme.GamerStoreMVPTheme
 import com.example.gamerstoremvp.ui.theme.components.GamerStoreTopBar
 
@@ -98,7 +104,7 @@ class UserViewModel(context: Context) : ViewModel() {
             val userJson = gson.toJson(user)
             sharedPreferences.edit { putString(currentUserKey, userJson) }
             loadOrders(user.id)
-        } catch (_: Exception) { 
+        } catch (_: Exception) {
         }
     }
 
@@ -219,8 +225,11 @@ fun GamerStoreApp(userViewModel: UserViewModel) {
     val currentUser by rememberUpdatedState(userViewModel.currentUser)
     val isAuthenticated = currentUser != null
     val shoppingCart = remember { mutableStateMapOf<Product, Int>() }
-    var selectedProduct by remember { mutableStateOf<Product?>(null) }
     val context = LocalContext.current
+
+    // --- CORRECCIÓN 1: Variable para guardar el total con descuento ---
+    var checkoutTotalAmount by remember { mutableIntStateOf(0) }
+    // ------------------------------------------------------------------
 
     val onAddToCart: (Product) -> Unit = { shoppingCart[it] = (shoppingCart[it] ?: 0) + 1 }
     val onDecreaseQuantity: (Product) -> Unit = {
@@ -228,9 +237,8 @@ fun GamerStoreApp(userViewModel: UserViewModel) {
         if (qty > 1) shoppingCart[it] = qty - 1 else shoppingCart.remove(it)
     }
     val onRemoveFromCart: (Product) -> Unit = { shoppingCart.remove(it) }
-    val onProductClick: (Product) -> Unit = { product ->
-        selectedProduct = product
-        navController.navigate(Screen.PRODUCT_DETAIL.name)
+    val onProductClick: (Int) -> Unit = { productId ->
+        navController.navigate("${Screen.PRODUCT_DETAIL.name}/$productId")
     }
     val onAuthSuccess: (User) -> Unit = { user ->
         userViewModel.loginUser(user)
@@ -251,20 +259,25 @@ fun GamerStoreApp(userViewModel: UserViewModel) {
         userViewModel.updateUser(updatedUser)
         Toast.makeText(context, "Perfil actualizado", Toast.LENGTH_SHORT).show()
     }
-    val onNavigateToCheckout: () -> Unit = {
+
+    // --- CORRECCIÓN 2: Modificar la navegación para recibir el total ---
+    val onNavigateToCheckout: (Int) -> Unit = { finalTotal ->
+        checkoutTotalAmount = finalTotal // Guardamos el precio
         navController.navigate(Screen.CHECKOUT.name)
     }
+    // -------------------------------------------------------------------
+
     val onPaymentSuccess: () -> Unit = {
         currentUser?.let { user ->
             val orderItems = shoppingCart.map { (product, quantity) ->
                 OrderItem(
                     productName = product.name,
                     quantity = quantity,
-                    pricePerUnit = product.price
+                    pricePerUnit = product.price.toInt()
                 )
             }
-            val totalAmount = orderItems.sumOf { it.pricePerUnit * it.quantity }
-            val newOrder = Order(items = orderItems, totalAmount = totalAmount, userId = user.id)
+            // --- CORRECCIÓN 3: Usar el total guardado para crear la orden ---
+            val newOrder = Order(items = orderItems, totalAmount = checkoutTotalAmount, userId = user.id)
             userViewModel.saveOrder(newOrder)
             shoppingCart.clear()
             navController.navigate(Screen.CATALOG.name) {
@@ -293,6 +306,22 @@ fun GamerStoreApp(userViewModel: UserViewModel) {
                     onClick = { scope.launch { drawerState.close() }; navController.navigate(Screen.CATALOG.name) { launchSingleTop = true } },
                     colors = NavigationDrawerItemDefaults.colors(unselectedContainerColor = Color.Transparent)
                 )
+
+                // --- Opción Mapa de Eventos ---
+                NavigationDrawerItem(
+                    icon = { Icon(Icons.Default.Map, "Mapa de Eventos", tint = ColorTextPrimary) },
+                    label = { Text("Mapa de Eventos", color = ColorTextPrimary) },
+                    selected = currentRoute == Screen.EVENTS_MAP.name,
+                    onClick = {
+                        scope.launch { drawerState.close() }
+                        navController.navigate(Screen.EVENTS_MAP.name) {
+                            launchSingleTop = true
+                        }
+                    },
+                    colors = NavigationDrawerItemDefaults.colors(unselectedContainerColor = Color.Transparent)
+                )
+                // -------------------------------
+
                 NavigationDrawerItem(
                     icon = { Icon(Icons.Default.Info, "Sobre Nosotros", tint = ColorTextPrimary) },
                     label = { Text("Sobre Nosotros", color = ColorTextPrimary) },
@@ -343,7 +372,7 @@ fun GamerStoreApp(userViewModel: UserViewModel) {
             },
             bottomBar = {
                 if (isAuthenticated && currentRoute != Screen.AUTH.name && currentRoute != Screen.PRODUCT_DETAIL.name && currentRoute != Screen.CHECKOUT.name) {
-                    BottomNavigationBar(navController = navController, currentRoute = currentRoute, isAuthenticated = isAuthenticated)
+                    BottomNavigationBar(navController = navController, currentRoute = currentRoute)
                 }
             },
             containerColor = ColorPrimaryBackground
@@ -361,8 +390,6 @@ fun GamerStoreApp(userViewModel: UserViewModel) {
                 }
                 composable(Screen.CATALOG.name) {
                     CatalogScreen(
-                        products = mockProducts,
-                        onAddToCart = onAddToCart,
                         onProductClick = onProductClick
                     )
                 }
@@ -374,35 +401,46 @@ fun GamerStoreApp(userViewModel: UserViewModel) {
                         onRemoveFromCart = onRemoveFromCart,
                         onIncreaseQuantity = onAddToCart,
                         onDecreaseQuantity = onDecreaseQuantity,
-                        onProductClick = onProductClick,
+                        onProductClick = { product: Product -> onProductClick(product.id) },
                         onNavigateToCheckout = onNavigateToCheckout,
                         userEmail = userEmail
                     )
                 }
-                composable(Screen.PRODUCT_DETAIL.name) {
-                    selectedProduct?.let { product ->
+                composable("${Screen.PRODUCT_DETAIL.name}/{productId}") { backStackEntry ->
+                    val productId = backStackEntry.arguments?.getString("productId")?.toIntOrNull()
+                    if (productId != null) {
                         ProductDetailScreen(
-                            product = product,
-                            onAddToCart = onAddToCart,
-                            onDecreaseQuantity = onDecreaseQuantity,
-                            cart = shoppingCart
+                            productCode = productId.toString(),
+                            onAddToCart = { product -> onAddToCart(product) },
+                            onDecreaseQuantity = { product -> onDecreaseQuantity(product) },
+                            cart = shoppingCart.map { it.key.id to it.value }.toMap()
                         )
-                    } ?: run { LaunchedEffect(Unit) { navController.popBackStack() } }
+                    } else {
+                        // Handle error: productId is null
+                        LaunchedEffect(Unit) { navController.popBackStack() }
+                    }
                 }
                 composable(Screen.PROFILE.name) {
                     currentUser?.let { user ->
                         ProfileScreen(user = user, onLogout = onLogout, onUserUpdate = onUserUpdate)
                     } ?: run { LaunchedEffect(Unit) { navController.navigate(Screen.AUTH.name) { popUpTo(0)} } }
                 }
+
+                // --- CORRECCIÓN 5: Pasamos el total guardado al Checkout ---
                 composable(Screen.CHECKOUT.name) {
-                    val total = shoppingCart.entries.sumOf { it.key.price * it.value }
-                    CheckoutScreen(totalAmount = total, onPaymentSuccess = onPaymentSuccess)
+                    CheckoutScreen(totalAmount = checkoutTotalAmount, onPaymentSuccess = onPaymentSuccess)
                 }
+                // ------------------------------------------------------------
+
                 composable(Screen.ORDERS.name) {
                     OrdersScreen(orders = userViewModel.orders)
                 }
                 composable(Screen.ABOUT_US.name) {
                     AboutUsScreen()
+                }
+
+                composable(Screen.EVENTS_MAP.name) {
+                    EventsMapScreen()
                 }
             }
         }
@@ -410,7 +448,7 @@ fun GamerStoreApp(userViewModel: UserViewModel) {
 }
 
 @Composable
-fun BottomNavigationBar(navController: NavHostController, currentRoute: String?, isAuthenticated: Boolean) {
+fun BottomNavigationBar(navController: NavHostController, currentRoute: String?) {
     NavigationBar(containerColor = Color.DarkGray.copy(alpha=0.9f)) {
         NavigationBarItem(
             icon = { Icon(Icons.AutoMirrored.Filled.List, "Productos", tint = if (currentRoute == Screen.CATALOG.name) ColorAccentNeon else ColorTextSecondary) },
@@ -426,19 +464,18 @@ fun BottomNavigationBar(navController: NavHostController, currentRoute: String?,
         )
         NavigationBarItem(
             icon = {
-                val icon = if (isAuthenticated) Icons.Filled.AccountCircle else Icons.AutoMirrored.Filled.Login
-                val color = if (currentRoute == Screen.PROFILE.name || currentRoute == Screen.AUTH.name) ColorAccentNeon else ColorTextSecondary
-                Icon(icon, "Perfil/Login", tint = color)
+                val icon = Icons.Filled.AccountCircle
+                val color = if (currentRoute == Screen.PROFILE.name) ColorAccentNeon else ColorTextSecondary
+                Icon(icon, "Perfil", tint = color)
             },
             label = {
-                val text = if (isAuthenticated) "Perfil" else "Login"
-                val color = if (currentRoute == Screen.PROFILE.name || currentRoute == Screen.AUTH.name) ColorAccentNeon else ColorTextSecondary
+                val text = "Perfil"
+                val color = if (currentRoute == Screen.PROFILE.name) ColorAccentNeon else ColorTextSecondary
                 Text(text, color = color, fontSize = 10.sp)
             },
-            selected = currentRoute == Screen.PROFILE.name || currentRoute == Screen.AUTH.name,
+            selected = currentRoute == Screen.PROFILE.name,
             onClick = {
-                val destination = if (isAuthenticated) Screen.PROFILE.name else Screen.AUTH.name
-                navController.navigate(destination) {
+                navController.navigate(Screen.PROFILE.name) {
                     popUpTo(navController.graph.startDestinationId)
                     launchSingleTop = true
                 }

@@ -118,7 +118,7 @@ fun OrderItemCard(order: Order) {
                 )
             }
             Spacer(modifier = Modifier.height(8.dp)) // Espacio
-            Divider(color = ColorTextSecondary.copy(alpha = 0.5f)) // Línea divisora
+            HorizontalDivider(color = ColorTextSecondary.copy(alpha = 0.5f)) // Línea divisora
             Spacer(modifier = Modifier.height(12.dp)) // Espacio
 
             // --- Lista de Ítems del Pedido ---
@@ -137,7 +137,7 @@ fun OrderItemCard(order: Order) {
                     )
                     // Precio total para ese ítem (cantidad * precio unitario)
                     Text(
-                        text = formatPrice(item.pricePerUnit * item.quantity),
+                        text = formatPrice((item.pricePerUnit * item.quantity).toDouble()),
                         fontFamily = Roboto,
                         color = ColorTextSecondary,
                         fontSize = 14.sp
@@ -146,7 +146,7 @@ fun OrderItemCard(order: Order) {
             }
 
             Spacer(modifier = Modifier.height(12.dp)) // Espacio
-            Divider(color = ColorTextSecondary.copy(alpha = 0.5f)) // Línea divisora
+            HorizontalDivider(color = ColorTextSecondary.copy(alpha = 0.5f)) // Línea divisora
             Spacer(modifier = Modifier.height(8.dp)) // Espacio
 
             // --- Fila Inferior: Total del Pedido ---
@@ -155,7 +155,7 @@ fun OrderItemCard(order: Order) {
                 horizontalArrangement = Arrangement.End // Alinea el total a la derecha
             ) {
                 Text(
-                    text = "Total: ${formatPrice(order.totalAmount)}",
+                    text = "Total: ${formatPrice(order.totalAmount.toDouble())}",
                     fontFamily = Orbitron,
                     fontWeight = FontWeight.Bold,
                     color = ColorAccentBlue,
