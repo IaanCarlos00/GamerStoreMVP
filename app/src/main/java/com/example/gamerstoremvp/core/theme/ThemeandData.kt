@@ -38,6 +38,9 @@ data class User(
     var phone: String,
     var address: String,
     var profileImageResId: Int? = null,
+    // --- NUEVO CAMPO: Guardar URI como texto ---
+    var profileImageUri: String? = null,
+    // -------------------------------------------
     var levelUpPoints: Int = 0,
     val referralCode: String = UUID.randomUUID().toString().take(8)
 )

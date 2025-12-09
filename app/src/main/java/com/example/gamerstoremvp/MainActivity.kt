@@ -167,12 +167,15 @@ class UserViewModel(context: Context) : ViewModel() {
     }
 
     fun updateUser(updatedUser: User) {
+        // --- CORRECCIÓN: Usar ID para comparación ---
         if (currentUser?.id == updatedUser.id) {
-            loginUser(updatedUser)
+            loginUser(updatedUser) // Actualiza currentUser y SharedPreferences
+            
+            // Actualiza también la lista global
             allUsers = allUsers.map {
                 if (it.id == updatedUser.id) updatedUser else it
             }
-            saveAllUsers()
+            saveAllUsers() // Guarda la lista global actualizada
         }
     }
 

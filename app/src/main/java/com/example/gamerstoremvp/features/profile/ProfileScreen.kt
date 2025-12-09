@@ -1,22 +1,25 @@
 package com.example.gamerstoremvp.features.profile
 
-
-import android.widget.Toast // <-- ¡NUEVA IMPORTACIÓN!
+import android.net.Uri
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.People
-import androidx.compose.material.icons.filled.Star
-// --- ¡NUEVAS IMPORTACIONES! ---
 import androidx.compose.material.icons.filled.Redeem
-// ------------------------------
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -25,25 +28,27 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext // <-- ¡NUEVA IMPORTACIÓN!
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import com.example.gamerstoremvp.R
-
-// Importaciones de tu tema
 import com.example.gamerstoremvp.core.theme.ColorAccentBlue
 import com.example.gamerstoremvp.core.theme.ColorAccentNeon
 import com.example.gamerstoremvp.core.theme.ColorPrimaryBackground
-import com.example.gamerstoremvp.core.theme.ColorTextSecondary
 import com.example.gamerstoremvp.core.theme.ColorTextPrimary
+import com.example.gamerstoremvp.core.theme.ColorTextSecondary
 import com.example.gamerstoremvp.core.theme.Orbitron
 import com.example.gamerstoremvp.core.theme.Roboto
 import com.example.gamerstoremvp.core.theme.User
 import com.example.gamerstoremvp.core.theme.formatPrice
 import com.example.gamerstoremvp.features.auth.AuthTextField
+import androidx.core.content.FileProvider
+import java.io.File
 
 @Composable
 fun ProfileScreen(
@@ -52,16 +57,53 @@ fun ProfileScreen(
     onUserUpdate: (User) -> Unit
 ) {
 
-
     var name by remember { mutableStateOf(user.name) }
     var phone by remember { mutableStateOf(user.phone) }
     var address by remember { mutableStateOf(user.address) }
-
+    
+    // --- ESTADO PARA LA IMAGEN DE PERFIL (URI o Resource ID) ---
+    // Si el usuario ya tiene una URI guardada, la cargamos inicialmente
+    var selectedImageUri by remember { 
+        mutableStateOf<Uri?>(
+            if (!user.profileImageUri.isNullOrEmpty()) Uri.parse(user.profileImageUri) else null
+        ) 
+    }
+    var tempCameraUri by remember { mutableStateOf<Uri?>(null) }
+    var showImageSourceDialog by remember { mutableStateOf(false) }
 
     var pointsToRedeemStr by remember { mutableStateOf("") }
     var showCouponDialog by remember { mutableStateOf(false) }
     var generatedCoupon by remember { mutableStateOf("") }
     val context = LocalContext.current
+
+    // --- LAUNCHERS PARA CÁMARA Y GALERÍA ---
+    
+    val galleryLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        if (uri != null) {
+            selectedImageUri = uri
+            // Aquí se guarda solo visualmente hasta que se pulse "GUARDAR CAMBIOS"
+        }
+    }
+
+    val cameraLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.TakePicture()
+    ) { success ->
+        if (success && tempCameraUri != null) {
+            selectedImageUri = tempCameraUri
+        }
+    }
+
+    // Función para crear un archivo temporal para la foto
+    fun createImageFile(): File {
+        val storageDir = context.getExternalFilesDir(android.os.Environment.DIRECTORY_PICTURES)
+        return File.createTempFile(
+            "JPEG_${System.currentTimeMillis()}_",
+            ".jpg",
+            storageDir
+        )
+    }
 
     Column(
         modifier = Modifier
@@ -81,15 +123,36 @@ fun ProfileScreen(
         Spacer(modifier = Modifier.height(24.dp))
 
         Box {
-            Image(
-                painter = painterResource(id = user.profileImageResId ?: R.drawable.profile_pic_default),
-                contentDescription = "Foto de Perfil",
-                contentScale = ContentScale.Crop,
-                modifier = Modifier
-                    .size(120.dp)
-                    .clip(CircleShape)
-                    .border(2.dp, ColorAccentBlue, CircleShape)
-            )
+            // Muestra imagen seleccionada (URI) o por defecto (Resource ID)
+            // Prioridad: 1. Imagen seleccionada/guardada URI, 2. Recurso predeterminado
+            if (selectedImageUri != null) {
+                AsyncImage(
+                    model = ImageRequest.Builder(context)
+                        .data(selectedImageUri)
+                        .crossfade(true)
+                        .build(),
+                    contentDescription = "Foto de Perfil",
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .size(120.dp)
+                        .clip(CircleShape)
+                        .border(2.dp, ColorAccentBlue, CircleShape)
+                        .clickable { showImageSourceDialog = true }
+                )
+            } else {
+                Image(
+                    painter = painterResource(id = user.profileImageResId ?: R.drawable.profile_pic_default),
+                    contentDescription = "Foto de Perfil",
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .size(120.dp)
+                        .clip(CircleShape)
+                        .border(2.dp, ColorAccentBlue, CircleShape)
+                        .clickable { showImageSourceDialog = true }
+                )
+            }
+            
+            // Icono de edición
             Icon(
                 imageVector = Icons.Default.Edit,
                 contentDescription = "Editar Foto",
@@ -100,6 +163,7 @@ fun ProfileScreen(
                     .background(ColorAccentNeon)
                     .padding(6.dp)
                     .align(Alignment.BottomEnd)
+                    .clickable { showImageSourceDialog = true }
             )
         }
 
@@ -164,9 +228,8 @@ fun ProfileScreen(
 
                             val newPoints = user.levelUpPoints - pointsToRedeem
                             val updatedUser = user.copy(levelUpPoints = newPoints)
-                            onUserUpdate(updatedUser) // Actualiza el usuario
+                            onUserUpdate(updatedUser) 
 
-                            // Genera el cupón
                             generatedCoupon = "LEVELUP$pointsToRedeem"
                             showCouponDialog = true
                             pointsToRedeemStr = ""
@@ -218,7 +281,10 @@ fun ProfileScreen(
                 val updatedUser = user.copy(
                     name = name,
                     phone = phone,
-                    address = address
+                    address = address,
+                    // --- ACTUALIZAMOS LA URI DE LA IMAGEN EN EL OBJETO USUARIO ---
+                    profileImageUri = selectedImageUri?.toString() 
+                    // -------------------------------------------------------------
                 )
                 onUserUpdate(updatedUser)
             },
@@ -248,6 +314,50 @@ fun ProfileScreen(
         }
     }
 
+    // --- DIALOGO PARA ELEGIR FUENTE DE IMAGEN ---
+    if (showImageSourceDialog) {
+        AlertDialog(
+            onDismissRequest = { showImageSourceDialog = false },
+            title = { Text("Cambiar Foto de Perfil", fontFamily = Orbitron, color = ColorTextPrimary) },
+            text = {
+                Column {
+                    ListItem(
+                        headlineContent = { Text("Tomar Foto", color = ColorTextPrimary) },
+                        leadingContent = { Icon(Icons.Default.CameraAlt, contentDescription = null, tint = ColorAccentBlue) },
+                        modifier = Modifier.clickable {
+                            showImageSourceDialog = false
+                            val photoFile = createImageFile()
+                            val uri = FileProvider.getUriForFile(
+                                context,
+                                "${context.packageName}.provider",
+                                photoFile
+                            )
+                            tempCameraUri = uri
+                            cameraLauncher.launch(uri)
+                        },
+                        colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+                    )
+                    HorizontalDivider(color = Color.Gray.copy(alpha = 0.5f))
+                    ListItem(
+                        headlineContent = { Text("Elegir de Galería", color = ColorTextPrimary) },
+                        leadingContent = { Icon(Icons.Default.Image, contentDescription = null, tint = ColorAccentBlue) },
+                        modifier = Modifier.clickable {
+                            showImageSourceDialog = false
+                            galleryLauncher.launch("image/*")
+                        },
+                        colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+                    )
+                }
+            },
+            confirmButton = {},
+            dismissButton = {
+                TextButton(onClick = { showImageSourceDialog = false }) {
+                    Text("CANCELAR", color = ColorTextSecondary)
+                }
+            },
+            containerColor = Color.DarkGray
+        )
+    }
 
     if (showCouponDialog) {
         AlertDialog(
@@ -266,7 +376,7 @@ fun ProfileScreen(
                         modifier = Modifier.padding(top = 8.dp)
                     )
                     Text(
-                        text = "Úsalo en tu carrito de compras para obtener ${// CORREGIDO: Se convierte a Double
+                        text = "Úsalo en tu carrito de compras para obtener ${
                             formatPrice(
                                 generatedCoupon.removePrefix("LEVELUP").toInt().toDouble()
                             )
@@ -287,8 +397,7 @@ fun ProfileScreen(
     }
 }
 
-
-
+// --- FALTABA ESTE COMPOSABLE AL FINAL DEL ARCHIVO ---
 @Composable
 fun InfoCard(title: String, content: String, icon: ImageVector) {
     Card(
