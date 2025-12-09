@@ -57,27 +57,27 @@ class ProductDetailViewModel(
     private fun fetchProductDetails() {
         _productState.value = ProductDetailUiState.Loading
         viewModelScope.launch {
+
             val productId = productCode.toIntOrNull()
             if (productId == null) {
-                _productState.value = ProductDetailUiState.Error("ID de producto inválido.")
+                _productState.value = ProductDetailUiState.Error("ID inválido")
                 return@launch
             }
 
             try {
-                // CORRECCIÓN 1: La llamada ahora devuelve la lista directamente.
                 val productList = RetrofitClient.instance.getProducts()
-                // CORRECCIÓN 2: Buscamos el producto en la lista.
-                val product = productList.find { it.id == productId }
+
+                val product = productList.firstOrNull { it.id == productId }
+
 
                 if (product != null) {
                     _productState.value = ProductDetailUiState.Success(product)
                 } else {
-                    _productState.value = ProductDetailUiState.Error("Producto no encontrado.")
+                    _productState.value = ProductDetailUiState.Error("Producto no encontrado")
                 }
-            } catch (e: IOException) {
-                _productState.value = ProductDetailUiState.Error("Error de red: ${e.message}")
+
             } catch (e: Exception) {
-                _productState.value = ProductDetailUiState.Error("Error desconocido: ${e.message}")
+                _productState.value = ProductDetailUiState.Error("Error al cargar producto")
             }
         }
     }

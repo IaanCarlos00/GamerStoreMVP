@@ -1,16 +1,14 @@
 package com.example.gamerstoremvp.features.catalog
 
 import android.annotation.SuppressLint
-import androidx.compose.foundation.Image
+import android.util.Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Search
@@ -24,7 +22,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -38,21 +35,29 @@ import com.example.gamerstoremvp.models.Product
 @Composable
 fun CatalogScreen(
     viewModel: ProductViewModel = viewModel(),
-    onProductClick: (Int) -> Unit // Pass the product ID
+    onProductClick: (Int) -> Unit,
+    onAddToCart: (Int) -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
-    Box(modifier = Modifier
-        .fillMaxSize()
-        .background(ColorPrimaryBackground)) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(ColorPrimaryBackground)
+    ) {
         when (val state = uiState) {
             is ProductListUiState.Loading -> {
                 CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
             }
+
             is ProductListUiState.Success -> {
-                // CORRECCIÓN: Accedemos a la lista de productos directamente.
-                ProductGrid(products = state.products, onProductClick = onProductClick)
+                ProductGrid(
+                    products = state.products,
+                    onProductClick = onProductClick,
+                    onAddToCart = onAddToCart
+                )
             }
+
             is ProductListUiState.Error -> {
                 Text(
                     text = state.message,
@@ -67,14 +72,15 @@ fun CatalogScreen(
 @Composable
 fun ProductGrid(
     products: List<Product>,
-    onProductClick: (Int) -> Unit
+    onProductClick: (Int) -> Unit,
+    onAddToCart: (Int) -> Unit
 ) {
     var searchQuery by remember { mutableStateOf("") }
 
     val filteredProducts = remember(searchQuery, products) {
         products.filter { product ->
-                product.name.contains(searchQuery, ignoreCase = true)
-            }
+            product.name.contains(searchQuery, ignoreCase = true)
+        }
     }
 
     LazyVerticalGrid(
@@ -86,9 +92,7 @@ fun ProductGrid(
     ) {
         item(span = { GridItemSpan(maxLineSpan) }) {
             Column {
-                WelcomeBanner(onTitleClick = {
-                    searchQuery = ""
-                })
+                WelcomeBanner(onTitleClick = { searchQuery = "" })
                 SearchBar(
                     searchQuery = searchQuery,
                     onSearchQueryChange = { newQuery -> searchQuery = newQuery }
@@ -96,10 +100,14 @@ fun ProductGrid(
             }
         }
 
-        items(filteredProducts) { product ->
+        items(
+            items = filteredProducts,
+            key = { it.id }   // 🔥 ESTO ES LO QUE ARREGLA TODO
+        ) { product ->
             ProductGridCard(
                 product = product,
-                onProductClick = { onProductClick(product.id) }
+                onProductClick = { onProductClick(product.id) },
+                onAddToCart = { onAddToCart(product.id) }
             )
         }
     }
@@ -174,7 +182,8 @@ fun SearchBar(
 @Composable
 fun ProductGridCard(
     product: Product,
-    onProductClick: () -> Unit
+    onProductClick: () -> Unit,
+    onAddToCart: (Int) -> Unit
 ) {
     Card(
         shape = RoundedCornerShape(12.dp),
@@ -197,6 +206,7 @@ fun ProductGridCard(
                     .clip(RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp)),
                 contentScale = ContentScale.Crop
             )
+
             Column(modifier = Modifier.padding(8.dp)) {
                 Text(
                     text = product.name,
@@ -206,7 +216,9 @@ fun ProductGridCard(
                     color = ColorTextPrimary,
                     maxLines = 2
                 )
+
                 Spacer(modifier = Modifier.height(4.dp))
+
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
                         imageVector = Icons.Default.Star,
@@ -222,7 +234,9 @@ fun ProductGridCard(
                         color = ColorTextSecondary
                     )
                 }
+
                 Spacer(modifier = Modifier.height(8.dp))
+
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -235,8 +249,12 @@ fun ProductGridCard(
                         fontSize = 14.sp,
                         color = ColorAccentBlue
                     )
+
                     IconButton(
-                        onClick = { /* TODO: Add to cart */ },
+                        onClick = {
+                            Log.d("CART_DEBUG", "Agregando ${product.name} con ID ${product.id}")
+                            onAddToCart(product.id)
+                        },
                         modifier = Modifier
                             .clip(RoundedCornerShape(8.dp))
                             .size(36.dp)

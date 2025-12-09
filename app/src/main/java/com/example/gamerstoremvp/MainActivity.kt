@@ -16,7 +16,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.List
-import androidx.compose.material.icons.automirrored.filled.Login
 import androidx.compose.material.icons.automirrored.filled.ReceiptLong
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -42,6 +41,7 @@ import com.example.gamerstoremvp.features.cart.CartScreen
 import com.example.gamerstoremvp.features.cart.CheckoutScreen
 import com.example.gamerstoremvp.features.catalog.CatalogScreen
 import com.example.gamerstoremvp.features.catalog.ProductDetailScreen
+import com.example.gamerstoremvp.features.data.remote.RetrofitClient
 import com.example.gamerstoremvp.models.Product
 import com.example.gamerstoremvp.features.orders.OrdersScreen
 import com.example.gamerstoremvp.features.profile.AboutUsScreen
@@ -224,19 +224,26 @@ fun GamerStoreApp(userViewModel: UserViewModel) {
     val currentRoute = navBackStackEntry?.destination?.route
     val currentUser by rememberUpdatedState(userViewModel.currentUser)
     val isAuthenticated = currentUser != null
-    val shoppingCart = remember { mutableStateMapOf<Product, Int>() }
+    val shoppingCart = remember { mutableStateMapOf<Int, Int>() }
     val context = LocalContext.current
 
     // --- CORRECCIÓN 1: Variable para guardar el total con descuento ---
     var checkoutTotalAmount by remember { mutableIntStateOf(0) }
     // ------------------------------------------------------------------
 
-    val onAddToCart: (Product) -> Unit = { shoppingCart[it] = (shoppingCart[it] ?: 0) + 1 }
-    val onDecreaseQuantity: (Product) -> Unit = {
-        val qty = shoppingCart[it] ?: 0
-        if (qty > 1) shoppingCart[it] = qty - 1 else shoppingCart.remove(it)
+    val onAddToCart: (Product) -> Unit = { product ->
+        shoppingCart[product.id] = (shoppingCart[product.id] ?: 0) + 1
     }
-    val onRemoveFromCart: (Product) -> Unit = { shoppingCart.remove(it) }
+    val onDecreaseQuantity: (Product) -> Unit = { product ->
+        val qty = shoppingCart[product.id] ?: 0
+        if (qty > 1) shoppingCart[product.id] = qty - 1
+        else shoppingCart.remove(product.id)
+    }
+    val onRemoveFromCart: (Product) -> Unit = { product ->
+        shoppingCart.remove(product.id)
+    }
+    val gson = Gson()
+
     val onProductClick: (Int) -> Unit = { productId ->
         navController.navigate("${Screen.PRODUCT_DETAIL.name}/$productId")
     }
@@ -269,26 +276,36 @@ fun GamerStoreApp(userViewModel: UserViewModel) {
 
     val onPaymentSuccess: () -> Unit = {
         currentUser?.let { user ->
-            val orderItems = shoppingCart.map { (product, quantity) ->
-                OrderItem(
-                    productName = product.name,
-                    quantity = quantity,
-                    pricePerUnit = product.price.toInt()
+            scope.launch {
+
+                val productList = RetrofitClient.instance.getProducts()
+
+                val orderItems = shoppingCart.map { (productId, quantity) ->
+                    val product = productList.firstOrNull { it.id == productId }
+
+                    OrderItem(
+                        productName = product?.name ?: "Producto desconocido",
+                        quantity = quantity,
+                        pricePerUnit = product?.price?.toInt() ?: 0
+                    )
+                }
+
+                val newOrder = Order(
+                    items = orderItems,
+                    totalAmount = checkoutTotalAmount,
+                    userId = user.id
                 )
+
+                userViewModel.saveOrder(newOrder)
+                shoppingCart.clear()
+
+                navController.navigate(Screen.CATALOG.name) {
+                    popUpTo(Screen.CART.name) { inclusive = true }
+                    launchSingleTop = true
+                }
+
+                Toast.makeText(context, "¡Compra realizada con éxito!", Toast.LENGTH_LONG).show()
             }
-            // --- CORRECCIÓN 3: Usar el total guardado para crear la orden ---
-            val newOrder = Order(items = orderItems, totalAmount = checkoutTotalAmount, userId = user.id)
-            userViewModel.saveOrder(newOrder)
-            shoppingCart.clear()
-            navController.navigate(Screen.CATALOG.name) {
-                popUpTo(Screen.CART.name) { inclusive = true }
-                launchSingleTop = true
-            }
-            Toast.makeText(context, "¡Compra realizada con éxito!", Toast.LENGTH_LONG).show()
-        } ?: run {
-            Toast.makeText(context, "Error: No se pudo registrar el pedido.", Toast.LENGTH_SHORT).show()
-            shoppingCart.clear()
-            navController.navigate(Screen.CATALOG.name) { popUpTo(Screen.CART.name) { inclusive = true }; launchSingleTop = true }
         }
     }
 
@@ -390,36 +407,55 @@ fun GamerStoreApp(userViewModel: UserViewModel) {
                 }
                 composable(Screen.CATALOG.name) {
                     CatalogScreen(
-                        onProductClick = onProductClick
+                        onProductClick = onProductClick,
+                        onAddToCart = { productId ->
+                            shoppingCart[productId] = (shoppingCart[productId] ?: 0) + 1
+                        }
                     )
                 }
-
                 composable(Screen.CART.name) {
                     val userEmail = userViewModel.currentUser?.email ?: ""
                     CartScreen(
-                        cart = shoppingCart,
-                        onRemoveFromCart = onRemoveFromCart,
-                        onIncreaseQuantity = onAddToCart,
-                        onDecreaseQuantity = onDecreaseQuantity,
-                        onProductClick = { product: Product -> onProductClick(product.id) },
+                        cart = shoppingCart.toMap(),
+                        onRemoveFromCart = { productId -> shoppingCart.remove(productId) },
+                        onIncreaseQuantity = { productId ->
+                            shoppingCart[productId] = (shoppingCart[productId] ?: 0) + 1
+                        },
+                        onDecreaseQuantity = { productId ->
+                            val qty = shoppingCart[productId] ?: 0
+                            if (qty > 1) shoppingCart[productId] = qty - 1
+                            else shoppingCart.remove(productId)
+                        },
+                        onProductClick = { productId ->
+                            navController.navigate("${Screen.PRODUCT_DETAIL.name}/$productId")
+                        },
                         onNavigateToCheckout = onNavigateToCheckout,
                         userEmail = userEmail
                     )
                 }
                 composable("${Screen.PRODUCT_DETAIL.name}/{productId}") { backStackEntry ->
-                    val productId = backStackEntry.arguments?.getString("productId")?.toIntOrNull()
+
+                    val productId = backStackEntry.arguments
+                        ?.getString("productId")
+                        ?.toIntOrNull()
+
                     if (productId != null) {
-                        ProductDetailScreen(
-                            productCode = productId.toString(),
-                            onAddToCart = { product -> onAddToCart(product) },
-                            onDecreaseQuantity = { product -> onDecreaseQuantity(product) },
-                            cart = shoppingCart.map { it.key.id to it.value }.toMap()
-                        )
+
+                        // ✅ CLAVE PARA QUE NO SE REUTILICE EL VIEWMODEL
+                        key(productId) {
+                            ProductDetailScreen(
+                                productCode = productId.toString(),
+                                onAddToCart = { product -> onAddToCart(product) },
+                                onDecreaseQuantity = { product -> onDecreaseQuantity(product) },
+                                cart = shoppingCart.toMap()
+                            )
+                        }
+
                     } else {
-                        // Handle error: productId is null
                         LaunchedEffect(Unit) { navController.popBackStack() }
                     }
                 }
+
                 composable(Screen.PROFILE.name) {
                     currentUser?.let { user ->
                         ProfileScreen(user = user, onLogout = onLogout, onUserUpdate = onUserUpdate)

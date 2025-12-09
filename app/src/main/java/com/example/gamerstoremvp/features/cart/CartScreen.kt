@@ -10,11 +10,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.LocalOffer // Icono de etiqueta
-import androidx.compose.material.icons.filled.Remove
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -29,59 +25,62 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
-// Importaciones de tu tema y datos
-import com.example.gamerstoremvp.core.theme.ColorAccentBlue
-import com.example.gamerstoremvp.core.theme.ColorAccentNeon
-import com.example.gamerstoremvp.core.theme.ColorPrimaryBackground
-import com.example.gamerstoremvp.core.theme.ColorTextPrimary
-import com.example.gamerstoremvp.core.theme.ColorTextSecondary
-import com.example.gamerstoremvp.core.theme.Orbitron
-import com.example.gamerstoremvp.models.Product
-import com.example.gamerstoremvp.core.theme.Roboto
-import com.example.gamerstoremvp.core.theme.formatPrice
-// Importa el gestor de cupones
 import com.example.gamerstoremvp.core.coupon.CouponManager
-
+import com.example.gamerstoremvp.core.theme.*
+import com.example.gamerstoremvp.features.catalog.ProductListUiState
+import com.example.gamerstoremvp.features.catalog.ProductViewModel
+import com.example.gamerstoremvp.models.Product
 
 @Composable
 fun CartScreen(
-    cart: Map<Product, Int>,
-    onRemoveFromCart: (Product) -> Unit,
-    onIncreaseQuantity: (Product) -> Unit,
-    onDecreaseQuantity: (Product) -> Unit,
-    onProductClick: (Product) -> Unit,
-    onNavigateToCheckout: (Int) -> Unit, // Recibe el Total Final
+    cart: Map<Int, Int>, // productId -> quantity
+    onRemoveFromCart: (Int) -> Unit,
+    onIncreaseQuantity: (Int) -> Unit,
+    onDecreaseQuantity: (Int) -> Unit,
+    onProductClick: (Int) -> Unit,
+    onNavigateToCheckout: (Int) -> Unit,
     userEmail: String
 ) {
+    val viewModel: ProductViewModel = viewModel()
+    val uiState by viewModel.uiState.collectAsState()
+
+    val productList = when (uiState) {
+        is ProductListUiState.Success -> (uiState as ProductListUiState.Success).products
+        else -> emptyList()
+    }
+
     val couponManager = remember { CouponManager() }
     val context = LocalContext.current
     val keyboardController = LocalSoftwareKeyboardController.current
 
-    // --- ESTADOS PARA CUPÓN MANUAL ---
     var manualCouponCode by remember { mutableStateOf("") }
     var appliedManualDiscount by remember { mutableIntStateOf(0) }
     var couponMessage by remember { mutableStateOf("") }
-    // ---------------------------------
 
-    // 1. Calcular Subtotal
-    val subtotal: Int = cart.entries.sumOf { (it.key.price * it.value).toInt() }
+    // ✅ SUBTOTAL DESDE API
+    val subtotal: Int = cart.entries.sumOf { (productId, quantity) ->
+        val product = productList.firstOrNull { it.id == productId }
 
-    // 2. Calcular Descuento Automático (Email)
-    val autoDiscountDouble: Double = remember(subtotal, userEmail) {
-        couponManager.calculateAutomaticDiscount(subtotal.toDouble(), userEmail)
+        ((product?.price ?: 0.0) * quantity).toInt()
     }
-    val autoDiscountValue: Int = autoDiscountDouble.toInt()
 
-    // 3. Calcular Total preliminar
-    val tempTotal = subtotal - autoDiscountValue
+    // ✅ DESCUENTO AUTOMÁTICO DUOC 20%
+    val duocDiscount: Int = remember(subtotal, userEmail) {
+        if (userEmail.endsWith("@duocuc.cl", ignoreCase = true)) {
+            (subtotal * 0.20).toInt()
+        } else {
+            0
+        }
+    }
 
-    // 4. Ajustar el Descuento Manual (No puede ser mayor que lo que queda por pagar)
-    val effectiveManualDiscount = if (appliedManualDiscount > tempTotal) tempTotal else appliedManualDiscount
+    val tempTotal = subtotal - duocDiscount
 
-    // 5. Calcular Total Final
+    val effectiveManualDiscount =
+        if (appliedManualDiscount > tempTotal) tempTotal else appliedManualDiscount
+
     val totalPrice = (tempTotal - effectiveManualDiscount).coerceAtLeast(0)
-
 
     var productToRemove by remember { mutableStateOf<Product?>(null) }
     var showSuccessDialog by remember { mutableStateOf(false) }
@@ -92,6 +91,8 @@ fun CartScreen(
             .padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
+
+        // ✅ TÍTULO CON ESTILO ORIGINAL
         Text(
             text = "Tu Carrito Level-Up",
             fontFamily = Orbitron,
@@ -110,8 +111,7 @@ fun CartScreen(
                     text = "El carrito está vacío.\n¡Es hora de subir de nivel!",
                     color = ColorTextSecondary,
                     textAlign = TextAlign.Center,
-                    fontSize = 16.sp,
-                    modifier = Modifier.padding(horizontal = 32.dp)
+                    fontSize = 16.sp
                 )
             }
         } else {
@@ -119,40 +119,47 @@ fun CartScreen(
                 modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                items(cart.entries.toList()) { (product, quantity) ->
+                items(cart.entries.toList()) { (productId, quantity) ->
+                    val product = productList.firstOrNull { it.id == productId } ?: return@items
+
                     CartItemRow(
                         product = product,
                         quantity = quantity,
                         onDecreaseQuantity = {
-                            if (quantity == 1) {
-                                productToRemove = product
-                            } else {
-                                onDecreaseQuantity(product)
-                            }
+                            if (quantity == 1) productToRemove = product
+                            else onDecreaseQuantity(productId)
                         },
-                        onRemoveFromCart = { onRemoveFromCart(product) },
-                        onIncreaseQuantity = { onIncreaseQuantity(product) },
-                        onProductClick = { onProductClick(product) }
+                        onRemoveFromCart = { onRemoveFromCart(productId) },
+                        onIncreaseQuantity = { onIncreaseQuantity(productId) },
+                        onProductClick = { onProductClick(productId) }
                     )
                 }
             }
 
-            // --- SECCIÓN DE CUPÓN MANUAL ---
+            // ✅ CUPÓN MANUAL
             Card(
                 shape = RoundedCornerShape(12.dp),
                 colors = CardDefaults.cardColors(containerColor = Color.DarkGray.copy(alpha = 0.4f)),
-                modifier = Modifier.fillMaxWidth().padding(top = 16.dp)
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 16.dp)
             ) {
                 Column(modifier = Modifier.padding(12.dp)) {
-                    Text("¿Tienes un código de Puntos Gamer?", color = ColorTextSecondary, fontSize = 12.sp)
+                    Text(
+                        "¿Tienes un código de Puntos Gamer?",
+                        color = ColorTextSecondary,
+                        fontSize = 12.sp
+                    )
+
                     Spacer(modifier = Modifier.height(8.dp))
+
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         OutlinedTextField(
                             value = manualCouponCode,
-                            onValueChange = { manualCouponCode = it.uppercase() }, // Auto mayúsculas
+                            onValueChange = { manualCouponCode = it.uppercase() },
                             placeholder = { Text("Ej: LEVELUP5000", color = Color.Gray) },
                             modifier = Modifier.weight(1f),
                             singleLine = true,
@@ -165,41 +172,50 @@ fun CartScreen(
                             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
                             keyboardActions = KeyboardActions(onDone = { keyboardController?.hide() })
                         )
+
                         Spacer(modifier = Modifier.width(8.dp))
+
                         Button(
                             onClick = {
                                 keyboardController?.hide()
-                                val discount = couponManager.calculateManualCoupon(manualCouponCode)
+                                val discount =
+                                    couponManager.calculateManualCoupon(manualCouponCode)
                                 if (discount > 0) {
                                     appliedManualDiscount = discount
                                     couponMessage = "¡Cupón aplicado!"
-                                    Toast.makeText(context, "Descuento de ${formatPrice(discount.toDouble())} aplicado", Toast.LENGTH_SHORT).show()
+                                    Toast.makeText(
+                                        context,
+                                        "Descuento aplicado",
+                                        Toast.LENGTH_SHORT
+                                    ).show()
                                 } else {
                                     appliedManualDiscount = 0
                                     couponMessage = "Código inválido"
-                                    Toast.makeText(context, "Código inválido", Toast.LENGTH_SHORT).show()
                                 }
                             },
-                            colors = ButtonDefaults.buttonColors(containerColor = ColorAccentBlue),
-                            shape = RoundedCornerShape(8.dp),
-                            modifier = Modifier.height(56.dp) // Misma altura que el TextField
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = ColorAccentBlue
+                            )
                         ) {
-                            Icon(Icons.Default.LocalOffer, contentDescription = null, tint = ColorTextPrimary)
+                            Icon(
+                                Icons.Default.LocalOffer,
+                                contentDescription = null,
+                                tint = ColorTextPrimary
+                            )
                         }
                     }
+
                     if (couponMessage.isNotEmpty()) {
                         Text(
                             text = couponMessage,
                             color = if (appliedManualDiscount > 0) ColorAccentNeon else Color.Red,
-                            fontSize = 12.sp,
-                            modifier = Modifier.padding(top = 4.dp)
+                            fontSize = 12.sp
                         )
                     }
                 }
             }
-            // -------------------------------
 
-            // --- Card de Resumen de Compra ---
+            // ✅ RESUMEN DE COMPRA COMPLETO
             Card(
                 shape = RoundedCornerShape(12.dp),
                 colors = CardDefaults.cardColors(containerColor = Color.DarkGray.copy(alpha = 0.7f)),
@@ -208,60 +224,90 @@ fun CartScreen(
                     .padding(top = 16.dp)
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
-                    Text(
-                        text = "RESUMEN DE COMPRA",
-                        fontFamily = Orbitron,
-                        color = ColorAccentNeon,
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    HorizontalDivider(color = ColorTextSecondary.copy(alpha = 0.5f))
-                    Spacer(modifier = Modifier.height(8.dp))
 
-                    // Filas de precios
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         Text("Subtotal:", fontFamily = Roboto, color = ColorTextPrimary)
-                        Text(text = formatPrice(subtotal.toDouble()), fontFamily = Orbitron, color = ColorTextPrimary)
+                        Text(
+                            formatPrice(subtotal.toDouble()),
+                            fontFamily = Orbitron,
+                            color = ColorTextPrimary
+                        )
                     }
 
-                    // Fila Descuento Automático
-                    if (autoDiscountValue > 0) {
+                    if (duocDiscount > 0) {
+                        Spacer(modifier = Modifier.height(6.dp))
+
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            Text("Dscto. DuocUC (20%):", fontFamily = Roboto, color = ColorAccentBlue, fontWeight = FontWeight.Bold)
-                            Text(text = "- ${formatPrice(autoDiscountValue.toDouble())}", fontFamily = Orbitron, color = ColorAccentBlue, fontWeight = FontWeight.Bold)
+                            Text(
+                                "Dscto. DuocUC (20%):",
+                                fontFamily = Roboto,
+                                color = ColorAccentBlue,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                "- ${formatPrice(duocDiscount.toDouble())}",
+                                fontFamily = Orbitron,
+                                color = ColorAccentBlue,
+                                fontWeight = FontWeight.Bold
+                            )
                         }
                     }
 
-                    // Fila Descuento Manual (Puntos)
                     if (effectiveManualDiscount > 0) {
+                        Spacer(modifier = Modifier.height(6.dp))
+
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            Text("Cupón Gamer:", fontFamily = Roboto, color = ColorAccentNeon, fontWeight = FontWeight.Bold)
-                            Text(text = "- ${formatPrice(effectiveManualDiscount.toDouble())}", fontFamily = Orbitron, color = ColorAccentNeon, fontWeight = FontWeight.Bold)
+                            Text(
+                                "Cupón Gamer:",
+                                fontFamily = Roboto,
+                                color = ColorAccentNeon,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                "- ${formatPrice(effectiveManualDiscount.toDouble())}",
+                                fontFamily = Orbitron,
+                                color = ColorAccentNeon,
+                                fontWeight = FontWeight.Bold
+                            )
                         }
                     }
 
-                    HorizontalDivider(color = ColorTextSecondary.copy(alpha = 0.5f), modifier = Modifier.padding(vertical = 8.dp))
+                    HorizontalDivider(
+                        color = ColorTextSecondary.copy(alpha = 0.5f),
+                        modifier = Modifier.padding(vertical = 8.dp)
+                    )
 
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Text("Total a Pagar:", fontFamily = Roboto, color = ColorTextPrimary, fontWeight = FontWeight.Black, fontSize = 18.sp)
-                        Text(formatPrice(totalPrice.toDouble()), fontFamily = Orbitron, color = ColorAccentNeon, fontWeight = FontWeight.Black, fontSize = 18.sp)
+                        Text(
+                            "Total a Pagar:",
+                            fontFamily = Roboto,
+                            color = ColorTextPrimary,
+                            fontWeight = FontWeight.Black,
+                            fontSize = 18.sp
+                        )
+                        Text(
+                            formatPrice(totalPrice.toDouble()),
+                            fontFamily = Orbitron,
+                            color = ColorAccentNeon,
+                            fontWeight = FontWeight.Black,
+                            fontSize = 18.sp
+                        )
                     }
+
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    // Botón Finalizar Compra
                     Button(
                         onClick = { onNavigateToCheckout(totalPrice) },
                         modifier = Modifier.fillMaxWidth(),
@@ -269,60 +315,49 @@ fun CartScreen(
                         colors = ButtonDefaults.buttonColors(containerColor = ColorAccentNeon),
                         elevation = ButtonDefaults.buttonElevation(defaultElevation = 6.dp)
                     ) {
-                        Text("FINALIZAR COMPRA", fontFamily = Orbitron, color = ColorPrimaryBackground, fontWeight = FontWeight.Black)
+                        Text(
+                            "FINALIZAR COMPRA",
+                            fontFamily = Orbitron,
+                            color = ColorPrimaryBackground,
+                            fontWeight = FontWeight.Black
+                        )
                     }
                 }
             }
         }
     }
 
-    // --- (Diálogos de confirmación sin cambios) ---
+    // ✅ DIÁLOGO ELIMINAR
     if (productToRemove != null) {
         val product = productToRemove!!
         AlertDialog(
             onDismissRequest = { productToRemove = null },
-            title = { Text("Eliminar Producto", fontFamily = Orbitron, color = ColorTextPrimary) },
-            text = { Text("¿Estás seguro de que quieres eliminar '${product.name}' del carrito?", fontFamily = Roboto, color = ColorTextSecondary) },
+            title = { Text("Eliminar Producto") },
+            text = { Text("¿Eliminar '${product.name}' del carrito?") },
             confirmButton = {
-                TextButton(
-                    onClick = {
-                        onRemoveFromCart(product)
-                        productToRemove = null
-                        showSuccessDialog = true
-                    }
-                ) {
-                    Text("SÍ, ELIMINAR", color = Color.Red)
-                }
+                TextButton(onClick = {
+                    onRemoveFromCart(product.id)
+                    productToRemove = null
+                    showSuccessDialog = true
+                }) { Text("ELIMINAR") }
             },
             dismissButton = {
-                TextButton(
-                    onClick = { productToRemove = null }
-                ) {
-                    Text("NO, CONSERVAR", color = ColorAccentBlue)
-                }
-            },
-            containerColor = Color.DarkGray
+                TextButton(onClick = { productToRemove = null }) { Text("CANCELAR") }
+            }
         )
     }
 
+    // ✅ CONFIRMACIÓN
     if (showSuccessDialog) {
         AlertDialog(
             onDismissRequest = { showSuccessDialog = false },
-            icon = { Icon(Icons.Filled.CheckCircle, contentDescription = "Éxito", tint = ColorAccentNeon, modifier = Modifier.size(48.dp)) },
-            title = { Text("Producto Eliminado", fontFamily = Orbitron, color = ColorTextPrimary) },
-            text = { Text("El producto ha sido eliminado con éxito.", fontFamily = Roboto, color = ColorTextSecondary) },
+            title = { Text("Producto eliminado") },
             confirmButton = {
-                TextButton(
-                    onClick = { showSuccessDialog = false }
-                ) {
-                    Text("OK", color = ColorAccentBlue)
-                }
-            },
-            containerColor = Color.DarkGray
+                TextButton(onClick = { showSuccessDialog = false }) { Text("OK") }
+            }
         )
     }
 }
-
 
 @Composable
 fun CartItemRow(
@@ -352,9 +387,7 @@ fun CartItemRow(
 
         Spacer(modifier = Modifier.width(16.dp))
 
-        Column(
-            modifier = Modifier.weight(1f)
-        ) {
+        Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = product.name,
                 color = ColorTextPrimary,
@@ -370,15 +403,18 @@ fun CartItemRow(
         }
 
         Row(verticalAlignment = Alignment.CenterVertically) {
-            IconButton(onClick = onDecreaseQuantity, modifier = Modifier.size(32.dp)) {
-                Icon(Icons.Default.Remove, contentDescription = "Quitar uno", tint = Color.White)
+            IconButton(onClick = onDecreaseQuantity) {
+                Icon(Icons.Default.Remove, contentDescription = null, tint = Color.White)
             }
-            Text("$quantity", color = Color.White, fontSize = 20.sp, modifier = Modifier.padding(horizontal = 8.dp))
-            IconButton(onClick = onIncreaseQuantity, modifier = Modifier.size(32.dp)) {
-                Icon(Icons.Default.Add, contentDescription = "Añadir uno", tint = Color.White)
+
+            Text("$quantity", color = Color.White, fontSize = 20.sp)
+
+            IconButton(onClick = onIncreaseQuantity) {
+                Icon(Icons.Default.Add, contentDescription = null, tint = Color.White)
             }
-            IconButton(onClick = onRemoveFromCart, modifier = Modifier.size(32.dp)) {
-                Icon(Icons.Default.Delete, contentDescription = "Eliminar del carrito", tint = Color.Red)
+
+            IconButton(onClick = onRemoveFromCart) {
+                Icon(Icons.Default.Delete, contentDescription = null, tint = Color.Red)
             }
         }
     }

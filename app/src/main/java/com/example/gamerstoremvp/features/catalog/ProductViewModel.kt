@@ -32,15 +32,15 @@ class ProductViewModel : ViewModel() {
         _uiState.value = ProductListUiState.Loading
         viewModelScope.launch {
             try {
-                // La API ahora devuelve la lista directamente.
-                val productList = RetrofitClient.instance.getProducts()
-                // Pasamos la lista al estado Success.
-                _uiState.value = ProductListUiState.Success(productList) // <-- CORRECCIÓN: Se pasa la lista.
-            } catch (e: IOException) {
-                _uiState.value = ProductListUiState.Error("Error de red: ${e.message}")
+                val apiList = RetrofitClient.instance.getProducts()
+
+                // ✅ USAR IDS REALES DE LA API (SIN TOCARLOS)
+                _uiState.value = ProductListUiState.Success(apiList)
+
             } catch (e: Exception) {
-                _uiState.value = ProductListUiState.Error("Error desconocido: ${e.message}")
+                _uiState.value = ProductListUiState.Error("Error cargando productos")
             }
         }
     }
 }
+
